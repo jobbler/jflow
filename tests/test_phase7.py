@@ -12,7 +12,7 @@ from jflow.core import JiraClient
 from jflow.core.actions.system import get_myself, get_server_info, init_config, build_status
 
 # 1. Version Check
-assert __version__ == "0.2.6"
+assert __version__ == "0.2.7"
 
 # 2. Test Get Myself (friendly keys)
 mock_client = MagicMock(spec=JiraClient)

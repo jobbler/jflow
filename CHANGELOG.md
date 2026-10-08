@@ -11,9 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.7] - 2026-10-08
+
 ### Added
 
-- `jflow issue convert KEY TYPE [PARENT]` — change any issue type; parent required when converting to a sub-task type; converting away from a sub-task clears parent
+- `jflow issue convert KEY TYPE [PARENT]` — change any issue type; parent required when converting to a sub-task type; converting away from a sub-task clears parent (uses bulk move for sub-task promote/demote)
 - `jflow issue create --parent KEY` — create Sub-task in one shot (parent required for sub-task types)
 - Template first-class `parent` (supports `{placeholders}`); CLI `--parent` overrides template
 - Workflow `create` honors `parent`; new chain action `convert` (`issue_type`, optional `parent`)
@@ -141,7 +143,9 @@ Early development snapshot (not published under the `jflow` name).
 - Example configs and workflow JSON under `examples/`
 - Project documentation under `docs/` (MCP, templates, workflows, text fields, staging tests)
 
-[Unreleased]: https://github.com/jobbler/jflow/compare/v0.2.5...HEAD
+[Unreleased]: https://github.com/jobbler/jflow/compare/v0.2.7...HEAD
+[0.2.7]: https://github.com/jobbler/jflow/releases/tag/v0.2.7
+[0.2.6]: https://github.com/jobbler/jflow/releases/tag/v0.2.6
 [0.2.5]: https://github.com/jobbler/jflow/releases/tag/v0.2.5
 [0.2.4]: https://github.com/jobbler/jflow/releases/tag/v0.2.4
 [0.2.3]: https://github.com/jobbler/jflow/releases/tag/v0.2.3
