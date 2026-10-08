@@ -1,0 +1,31 @@
+# ==============================================================================
+# jflow - CLI for Jira Cloud
+# Co-created through collaborative AI pair programming with Gemini.
+# Refined / authored with assistance from Cursor (Grok).
+# ==============================================================================
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jflow"
+version = "0.2.6"
+description = "CLI for Jira Cloud workflows"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "httpx",
+    "pydantic>=2.0",
+    "typer",
+    "rich",
+    "pyyaml",
+]
+
+[project.scripts]
+jflow = "jflow.interfaces.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["jflow*"]
+
+[tool.setuptools.package-data]
+"jflow.staging" = ["fixtures/*.json"]

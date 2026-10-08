@@ -1,0 +1,27 @@
+{
+  "steps": [
+    {
+      "action": "create",
+      "project": "{project}",
+      "issue_type": "Task",
+      "summary": "{summary}",
+      "description": "Created via jflow workflow example.",
+      "labels": ["workflow-example"],
+      "extra_fields": {
+        "Sprint": "@current_sprint"
+      }
+    },
+    {
+      "action": "assign",
+      "assignee": "@me"
+    },
+    {
+      "action": "transition",
+      "status": "In Progress"
+    },
+    {
+      "action": "comment",
+      "message": "Workflow create_and_start completed."
+    }
+  ]
+}

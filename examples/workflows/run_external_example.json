@@ -1,0 +1,16 @@
+{
+  "steps": [
+    {
+      "action": "run",
+      "command": ["./hooks/echo_payload.sh"],
+      "format": "json",
+      "cwd": "examples/workflows",
+      "timeout_seconds": 30,
+      "fail_on_error": true,
+      "extra": {
+        "channel": "#jira",
+        "note": "Demo run step — replace or remove before production use"
+      }
+    }
+  ]
+}

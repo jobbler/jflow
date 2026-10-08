@@ -1,0 +1,20 @@
+{
+  "steps": [
+    {
+      "action": "create",
+      "project": "{project}",
+      "issue_type": "Task",
+      "summary": "{summary}",
+      "description": "Uses sprint action with @current_sprint (requires defaults.board).",
+      "labels": ["workflow-example"]
+    },
+    {
+      "action": "sprint",
+      "sprint_id": "@current_sprint"
+    },
+    {
+      "action": "transition",
+      "status": "In Progress"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "steps": [
+    {
+      "action": "create",
+      "template_name": "bug_report",
+      "labels": ["workflow-example"]
+    },
+    {
+      "action": "comment",
+      "message": "Created from bug_report template via workflow."
+    }
+  ]
+}

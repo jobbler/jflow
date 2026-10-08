@@ -1,0 +1,29 @@
+# ==============================================================================
+# Jira Tool - Dual-Interface CLI & MCP Server for Jira Cloud
+# Co-created through collaborative AI pair programming with Gemini.
+# Refined / authored with assistance from Cursor (Grok).
+# Created in whole or in part by AI using Cursor (Grok).
+# ==============================================================================
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Secrets / local credentials — never commit real Jira tokens
+.env
+.env.*
+*.pem
+*.key
+*.p12
+credentials.json
+secrets/
+**/user.yaml.live
+**/user.yaml.local
+**/*secrets*.yaml
+**/*credentials*.yaml
+# Filled staging configs (keep *.example committed)
+examples/config/staging-user.yaml
+examples/config/user.local.yaml

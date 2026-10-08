@@ -1,0 +1,31 @@
+# ==============================================================================
+# jflow - Dual-Interface CLI & MCP Server for Jira Cloud
+# Co-created through collaborative AI pair programming with Gemini.
+# Refined / authored with assistance from Cursor (Grok).
+# ==============================================================================
+# Staging example — copy to a private path, fill in real values, do not commit secrets.
+jira:
+  domain: "your-staging.atlassian.net"
+  email: "your-email@example.com"
+  api_token: "YOUR_STAGING_JIRA_API_TOKEN"
+
+defaults:
+  project: "STAG"
+  issue_type: "Task"
+  output_format: "markdown"
+
+projects:
+  STAG:
+    default_issue_type: "Task"
+
+templates:
+  bug_report:
+    summary: "[BUG] {component}: Issue in {env}"
+    description: "Steps to reproduce:\n{steps}"
+    issue_type: "Bug"
+    labels: ["bug"]
+    components: ["{component}"]
+
+jql_aliases:
+  my-open: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC"
+  project-recent: "project = STAG ORDER BY updated DESC"

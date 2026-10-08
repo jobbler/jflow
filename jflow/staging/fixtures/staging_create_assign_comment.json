@@ -1,0 +1,20 @@
+{
+  "steps": [
+    {
+      "action": "create",
+      "project": "PROJ",
+      "issue_type": "Task",
+      "summary": "[jflow-staging] workflow-chain (REPLACE_RUN_ID)",
+      "description": "Created by staging workflow chain reference. Replace PROJ and assignee before manual use.",
+      "labels": ["jflow-staging"]
+    },
+    {
+      "action": "assign",
+      "assignee": "your-email@example.com"
+    },
+    {
+      "action": "comment",
+      "message": "Workflow staging comment REPLACE_RUN_ID"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "steps": [
+    {
+      "action": "assign",
+      "assignee": "@me"
+    },
+    {
+      "action": "transition",
+      "status": "In Progress"
+    },
+    {
+      "action": "comment",
+      "message": "Picked up via start_existing workflow."
+    }
+  ]
+}
