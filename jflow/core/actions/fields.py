@@ -5,11 +5,297 @@
 # Created in whole or in part by AI using Cursor (Grok 4.5).
 # Updated in whole or in part by AI using Cursor (Composer).
 # ==============================================================================
+import time
 from typing import Any, Dict, List, Optional
 
 from jflow.core.adf import adf_to_text, collapse_to_single_line, text_to_adf_doc
 from jflow.core.client import JiraClient
 from jflow.core.fields import FieldCacheManager
+from jflow.core.keys import normalize_issue_key
+
+_BULK_MOVE_TIMEOUT_SECONDS = 60
+_BULK_MOVE_POLL_SECONDS = 0.5
+
+
+def resolve_issue_type(
+    client: JiraClient,
+    name: str,
+    project_key: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Look up an issue type by name (case-insensitive).
+
+    Prefers project-scoped types from GET /rest/api/3/project/{key} when
+    ``project_key`` is set, then falls back to GET /rest/api/3/issuetype.
+    """
+    if not name or not str(name).strip():
+        raise ValueError("Issue type name is required.")
+    wanted = str(name).strip().lower()
+
+    types: Any = None
+    if project_key:
+        try:
+            project = client.get(f"/rest/api/3/project/{project_key}")
+            if isinstance(project, dict):
+                types = project.get("issueTypes")
+        except RuntimeError:
+            types = None
+
+    if not isinstance(types, list):
+        types = client.get("/rest/api/3/issuetype")
+    if not isinstance(types, list):
+        raise ValueError("Unexpected response listing issue types.")
+
+    for entry in types:
+        if not isinstance(entry, dict):
+            continue
+        if str(entry.get("name") or "").strip().lower() == wanted:
+            return entry
+    available = sorted(
+        {
+            str(entry.get("name"))
+            for entry in types
+            if isinstance(entry, dict) and entry.get("name")
+        }
+    )
+    hint = ", ".join(available) if available else "none"
+    scope = f" in project {project_key}" if project_key else ""
+    raise ValueError(f"Unknown issue type '{name}'{scope}. Available: {hint}")
+
+
+_HIERARCHY_HINT = (
+    "Sub-tasks must hang under a standard issue (Story, Task, Bug, …), "
+    "not an Epic or another Sub-task. "
+    "If converting from Story, convert to Task first, then to Sub-task."
+)
+
+
+def validate_subtask_parent(
+    client: JiraClient,
+    parent_key: str,
+    child_project_key: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Ensure parent is a valid hierarchy parent for a Sub-task.
+
+    Jira rejects Epics and Sub-tasks as Sub-task parents with:
+    \"Given parent work item does not belong to appropriate hierarchy.\"
+    """
+    parent_key = normalize_issue_key(parent_key)
+    parent = client.get(f"/rest/api/3/issue/{parent_key}?fields=issuetype,project")
+    fields = (parent or {}).get("fields") or {}
+    itype = fields.get("issuetype") or {}
+    type_name = str(itype.get("name") or "Unknown")
+    if itype.get("subtask"):
+        raise ValueError(
+            f"Parent {parent_key} is a Sub-task ('{type_name}'). {_HIERARCHY_HINT}"
+        )
+    level = itype.get("hierarchyLevel")
+    if level is not None:
+        try:
+            level_int = int(level)
+        except (TypeError, ValueError):
+            level_int = None
+        if level_int is not None and level_int > 0:
+            raise ValueError(
+                f"Parent {parent_key} is '{type_name}' (hierarchy level {level_int}). "
+                f"{_HIERARCHY_HINT}"
+            )
+        if level_int is not None and level_int < 0:
+            raise ValueError(
+                f"Parent {parent_key} is '{type_name}' (hierarchy level {level_int}). "
+                f"{_HIERARCHY_HINT}"
+            )
+    elif type_name.strip().lower() == "epic":
+        raise ValueError(
+            f"Parent {parent_key} is an Epic. {_HIERARCHY_HINT}"
+        )
+
+    if child_project_key:
+        parent_project = fields.get("project") or {}
+        parent_proj_key = parent_project.get("key") if isinstance(parent_project, dict) else None
+        if parent_proj_key and parent_proj_key != child_project_key:
+            raise ValueError(
+                f"Parent {parent_key} is in project {parent_proj_key}, "
+                f"but the issue is in {child_project_key}. "
+                "Sub-task and parent must be in the same project."
+            )
+    return parent
+
+
+def reraise_hierarchy_error(exc: Exception) -> None:
+    """Attach guidance when Jira rejects a Sub-task parent hierarchy."""
+    msg = str(exc)
+    if "hierarch" in msg.lower():
+        raise RuntimeError(f"{msg} {_HIERARCHY_HINT}") from exc
+    raise exc
+
+
+def _issuetype_payload(type_meta: Dict[str, Any], fallback_name: str) -> Dict[str, str]:
+    type_id = type_meta.get("id")
+    if type_id is not None and str(type_id).strip():
+        return {"id": str(type_id)}
+    return {"name": str(type_meta.get("name") or fallback_name)}
+
+
+def _wait_bulk_task(
+    client: JiraClient,
+    task_id: str,
+    *,
+    timeout_seconds: float = _BULK_MOVE_TIMEOUT_SECONDS,
+) -> Dict[str, Any]:
+    """Poll GET /rest/api/3/bulk/queue/{taskId} until complete or failed."""
+    deadline = time.monotonic() + timeout_seconds
+    last: Dict[str, Any] = {}
+    while time.monotonic() < deadline:
+        progress = client.get(f"/rest/api/3/bulk/queue/{task_id}")
+        last = progress if isinstance(progress, dict) else {}
+        status = str(last.get("status") or "").upper()
+        if status in ("COMPLETE", "COMPLETED", "SUCCESS"):
+            invalid = last.get("invalidOrInaccessibleIssueCount") or 0
+            try:
+                invalid_n = int(invalid)
+            except (TypeError, ValueError):
+                invalid_n = 0
+            if invalid_n > 0:
+                raise RuntimeError(
+                    f"Bulk move finished with {invalid_n} inaccessible/invalid issue(s): {last}"
+                )
+            return last
+        if status in ("FAILED", "FAILURE", "CANCELLED", "CANCELED", "ERROR"):
+            raise RuntimeError(f"Bulk move failed ({status}): {last}")
+        time.sleep(_BULK_MOVE_POLL_SECONDS)
+    raise RuntimeError(
+        f"Bulk move timed out after {timeout_seconds:g}s waiting for task {task_id}: {last}"
+    )
+
+
+def _bulk_move_issue_type(
+    client: JiraClient,
+    *,
+    issue_key: str,
+    project_key: str,
+    type_id: str,
+    parent_key: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Move/convert issue type (and optional parent) via bulk move API.
+
+    A normal PUT cannot change type and parent together — Jira validates the
+    *current* type against the *new* parent and returns a hierarchy error.
+    Bulk move applies both atomically: mapping key is
+    ``PROJECT,TYPE_ID[,PARENT_KEY]``.
+    """
+    if parent_key:
+        mapping_key = f"{project_key},{type_id},{parent_key}"
+    else:
+        mapping_key = f"{project_key},{type_id}"
+    # Omit sendBulkNotification=false: that flag requires admin permission and
+    # returns 403 for normal users ("necessary permissions to disable bulk mail").
+    payload = {
+        "targetToSourcesMapping": {
+            mapping_key: {
+                "issueIdsOrKeys": [issue_key],
+                "inferClassificationDefaults": True,
+                "inferFieldDefaults": True,
+                "inferStatusDefaults": True,
+                "inferSubtaskTypeDefault": True,
+            }
+        },
+    }
+    try:
+        result = client.post("/rest/api/3/bulk/issues/move", payload)
+    except RuntimeError as exc:
+        reraise_hierarchy_error(exc)
+    task_id = (result or {}).get("taskId") if isinstance(result, dict) else None
+    if not task_id:
+        raise RuntimeError(f"Bulk move did not return a taskId: {result}")
+    return _wait_bulk_task(client, str(task_id))
+
+
+def convert_issue_type(
+    client: JiraClient,
+    issue_key: str,
+    new_type: str,
+    parent_key: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Change an issue's type. Parent is required when converting to a sub-task type."""
+    issue_key = normalize_issue_key(issue_key)
+    current = client.get(
+        f"/rest/api/3/issue/{issue_key}?fields=issuetype,parent,project"
+    )
+    fields = (current or {}).get("fields") or {}
+    current_type = fields.get("issuetype") or {}
+    from_type = current_type.get("name") or ""
+    was_subtask = bool(current_type.get("subtask"))
+    project = fields.get("project") or {}
+    project_key = project.get("key") if isinstance(project, dict) else None
+    if not project_key:
+        raise ValueError(f"Could not determine project for issue {issue_key}.")
+
+    target = resolve_issue_type(client, new_type, project_key=project_key)
+    to_type = str(target.get("name") or new_type)
+    to_subtask = bool(target.get("subtask"))
+    type_id = target.get("id")
+    if type_id is None or not str(type_id).strip():
+        raise ValueError(
+            f"Issue type '{to_type}' has no id; cannot convert via Jira bulk move."
+        )
+    type_id_str = str(type_id)
+
+    parent_norm: Optional[str] = None
+    if parent_key:
+        parent_norm = normalize_issue_key(parent_key)
+
+    if to_subtask and not parent_norm:
+        raise ValueError(
+            f"Parent issue key is required when converting to sub-task type '{to_type}'."
+        )
+    if not to_subtask and parent_norm:
+        raise ValueError(
+            "Parent is only allowed when converting to a sub-task type "
+            "(use 'jflow issue parent' for epic/parent links)."
+        )
+
+    if to_subtask and parent_norm:
+        validate_subtask_parent(
+            client, parent_norm, child_project_key=project_key
+        )
+
+    # Sub-task promote/demote must use bulk move (type + parent together).
+    # Plain PUT fails with hierarchy errors even when the parent is a Story.
+    if to_subtask or was_subtask:
+        try:
+            _bulk_move_issue_type(
+                client,
+                issue_key=issue_key,
+                project_key=project_key,
+                type_id=type_id_str,
+                parent_key=parent_norm if to_subtask else None,
+            )
+        except RuntimeError as exc:
+            reraise_hierarchy_error(exc)
+        result_parent = parent_norm if to_subtask else None
+    else:
+        payload_fields: Dict[str, Any] = {
+            "issuetype": _issuetype_payload(target, to_type)
+        }
+        existing = fields.get("parent") or {}
+        result_parent = (
+            existing.get("key") if isinstance(existing, dict) else None
+        )
+        try:
+            client.put(
+                f"/rest/api/3/issue/{issue_key}",
+                payload={"fields": payload_fields},
+            )
+        except RuntimeError as exc:
+            reraise_hierarchy_error(exc)
+
+    return {
+        "key": issue_key,
+        "from_type": from_type,
+        "to_type": to_type,
+        "parent": result_parent,
+        "status": "Type Converted",
+    }
 
 
 def _browse_url_from_linked_issue(issue: Dict[str, Any]) -> str:

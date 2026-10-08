@@ -85,11 +85,14 @@ def process_template(
     ]
     rendered_fields = _render_value(dict(template.fields), vars_dict)
 
+    rendered_parent = render_string(template.parent, vars_dict)
+
     return IssueTemplate(
         summary=rendered_summary,
         description=rendered_description,
         issue_type=template.issue_type,
         project=template.project,
+        parent=rendered_parent,
         labels=template.labels,
         components=rendered_components,
         fields=rendered_fields if isinstance(rendered_fields, dict) else {},

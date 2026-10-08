@@ -197,9 +197,20 @@ rendered = process_template(
 assert rendered.components == ["Auth"]
 assert rendered.fields["Environment"] == "QA"
 
+def _create_types_get(path, params=None):
+    if path == "/rest/api/3/issuetype":
+        return [
+            {"id": "1", "name": "Bug", "subtask": False},
+            {"id": "2", "name": "Task", "subtask": False},
+        ]
+    if path == "/rest/api/3/serverInfo":
+        return {"baseUrl": "https://test.atlassian.net"}
+    return {}
+
+
 create_client = MagicMock(spec=JiraClient)
 create_client.post.return_value = {"id": "1", "key": "PROJ-9", "self": "http://x"}
-create_client.get.return_value = {"baseUrl": "https://test.atlassian.net"}
+create_client.get.side_effect = _create_types_get
 create_fields = MagicMock(spec=FieldCacheManager)
 
 def resolve_field(name):
@@ -229,7 +240,7 @@ assert posted["customfield_10100"] == "QA"
 # --- extra_fields encoding ---
 extra_client = MagicMock(spec=JiraClient)
 extra_client.post.return_value = {"id": "2", "key": "PROJ-10", "self": "http://x"}
-extra_client.get.return_value = {"baseUrl": "https://test.atlassian.net"}
+extra_client.get.side_effect = _create_types_get
 extra_fields_mgr = MagicMock(spec=FieldCacheManager)
 extra_fields_mgr.resolve_field.return_value = {
     "id": "customfield_1",

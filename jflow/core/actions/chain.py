@@ -13,7 +13,12 @@ from jflow.core.actions.assignee import assign_issue, set_reporter
 from jflow.core.actions.status_comment import transition_issue, add_comment
 from jflow.core.actions.labels import add_labels
 from jflow.core.actions.sprint import add_issue_to_sprint, resolve_board
-from jflow.core.actions.fields import update_field, update_summary, update_description
+from jflow.core.actions.fields import (
+    convert_issue_type,
+    update_field,
+    update_summary,
+    update_description,
+)
 from jflow.core.actions.run_cmd import run_external_command
 from jflow.core.templates import apply_workflow_vars
 
@@ -51,9 +56,24 @@ def execute_chain(
                 template_vars=step.get("template_vars"),
                 labels=step.get("labels"),
                 extra_fields=step.get("extra_fields"),
+                parent=step.get("parent"),
             )
             current_key = res.get("key")
             results.append({"step": "create", "result": res})
+
+        elif action == "convert":
+            if not issue_key:
+                raise ValueError("Action 'convert' requires an active issue key.")
+            new_type = step.get("issue_type") or step.get("type")
+            if not new_type:
+                raise ValueError("Action 'convert' requires 'issue_type' (or 'type').")
+            res = convert_issue_type(
+                client,
+                issue_key=issue_key,
+                new_type=new_type,
+                parent_key=step.get("parent"),
+            )
+            results.append({"step": "convert", "result": res})
 
         elif action == "assign":
             if not issue_key:

@@ -228,12 +228,13 @@ Output format defaults come from config (`markdown`, `text`, `unix`, `json`, `ya
 | `jflow show` / `list` / `create` / `assign` / `comment` / `label` / `change` | Top-level aliases for common `issue` commands |
 | `jflow boards list` | List all Agile boards (id and name; optional `--limit`) |
 | `jflow boards search` | Search boards by name substring (`-q`; optional `--limit`) |
-| `jflow issue create` | Create issue (optional `--template` / `--var`; optional multiline `--desc`) |
+| `jflow issue create` | Create issue (optional `--template` / `--var` / `--parent`; Sub-task requires `--parent`) |
 | `jflow issue list` | List my issues (`--filter` / `--status` / `--jql`) |
 | `jflow issue show ISSUE` | Show issue details (`--comments none\|last\|all\|N`, `--only`) |
 | `jflow issue search` | JQL or alias search; supports `--var` |
 | `jflow issue assign` / `reporter` | Set assignee or reporter |
 | `jflow issue change ISSUE STATUS` | Change issue workflow status |
+| `jflow issue convert ISSUE TYPE [PARENT]` | Change issue type (parent required for Sub-task) |
 | `jflow issue comment` | Add a comment (multiline OK) |
 | `jflow issue summary` / `description` | Update summary or description |
 | `jflow issue field` | Update any field by display name or id |

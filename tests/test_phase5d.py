@@ -26,6 +26,8 @@ mock_client.post.side_effect = [
 
 # 2. Mock GET responses based on route path
 def mock_get_handler(path, params=None):
+    if path == "/rest/api/3/issuetype":
+        return [{"id": "1", "name": "Task", "subtask": False}]
     if "user/search" in path:
         return [{"accountId": "account-id-alex"}]
     if "transitions" in path:

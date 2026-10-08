@@ -93,8 +93,8 @@ A `create` step only reads these **first-class** keys (anything else at the top 
 
 | Key | Role |
 |-----|------|
-| `project`, `issue_type`, `summary`, `description`, `labels` | Direct create params (strings support `{placeholders}`) |
-| `template_name`, `template_vars` | Load a named template from `user.yaml` |
+| `project`, `issue_type`, `summary`, `description`, `labels`, `parent` | Direct create params (strings support `{placeholders}`). `parent` is required when `issue_type` is a sub-task type. |
+| `template_name`, `template_vars` | Load a named template from `user.yaml` (template may supply `parent`) |
 | `extra_fields` | Map of field display name → value (schema-encoded; see [fields.md](fields.md)) |
 
 **Templates apply their full create shape.** With `"template_name": "bug_report"`, the chain uses the same path as `jflow issue create -T bug_report`: template `summary`, `description`, `issue_type`, `project`, `labels`, **`components`**, and **`fields`** are all applied (after `{placeholder}` render). You do **not** need to repeat `components` in the workflow JSON if the template already defines them.
@@ -145,6 +145,18 @@ Update a field later in the same chain:
 { "action": "field", "field": "Environment", "value": "Production" }
 ```
 
+Create a sub-task, or convert types:
+
+```json
+{ "action": "create", "issue_type": "Sub-task", "parent": "{parent}", "summary": "{summary}", "project": "{project}" }
+{ "action": "convert", "issue_type": "Task" }
+{ "action": "convert", "issue_type": "Sub-task", "parent": "PROJ-100" }
+```
+
+Story → Sub-task often needs two converts (Story → Task, then Task → Sub-task), matching the Jira UI.
+
+**Parent hierarchy:** Sub-task parents must be a standard issue (Story, Task, Bug, …). An Epic (or another Sub-task) is rejected. Converting to/from Sub-task uses Jira’s bulk-move API so type and parent change together (a normal field edit fails hierarchy checks even when the parent is a valid Story).
+
 ## Sprints in workflows vs CLI
 
 | Approach | How to target a sprint |
@@ -167,7 +179,8 @@ Or use a chain with `"sprint_id": "@current_sprint"` ([`create_to_sprint.json`](
 
 | `action` | Parameters | Notes |
 |----------|------------|--------|
-| `create` | `project`, `issue_type`, `summary`, `description`, `template_name`, `template_vars`, `labels`, `extra_fields` | Sets the active key for following steps. Only these keys are read — top-level `components` and other unknown keys are ignored. `template_name` applies template `components` and `fields` (see [Create-step fields](#create-step-fields-what-is-honored)). `extra_fields` for any other named field (display names, schema-encoded; see [fields.md](fields.md)). String fields accept `{placeholders}` from `--var`. |
+| `create` | `project`, `issue_type`, `summary`, `description`, `parent`, `template_name`, `template_vars`, `labels`, `extra_fields` | Sets the active key for following steps. Only these keys are read — top-level `components` and other unknown keys are ignored. `parent` required for sub-task types. `template_name` applies template `components`, `fields`, and `parent` (see [Create-step fields](#create-step-fields-what-is-honored)). `extra_fields` for any other named field (display names, schema-encoded; see [fields.md](fields.md)). String fields accept `{placeholders}` from `--var`. |
+| `convert` | `issue_type` (or `type`), optional `parent` | Change issue type. `parent` required when converting to a sub-task type; converting away from a sub-task clears parent. Uses the active key unless `issue_key` is set. |
 | `assign` | `assignee` | Email, display name, account ID, or `@me` |
 | `reporter` | `reporter` | Same lookup rules as assign |
 | `transition` | `status` | Status **name** or transition ID (must be valid for that issue) |

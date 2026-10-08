@@ -12,6 +12,9 @@ dist/
 build/
 .pytest_cache/
 
+# cursor
+.cursor/
+
 # Secrets / local credentials — never commit real Jira tokens
 .env
 .env.*

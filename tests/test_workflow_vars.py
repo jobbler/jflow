@@ -80,6 +80,11 @@ fields_mgr = MagicMock(spec=FieldCacheManager)
 
 
 def _get(path, params=None):
+    if path == "/rest/api/3/issuetype":
+        return [
+            {"id": "1", "name": "Task", "subtask": False},
+            {"id": "2", "name": "Bug", "subtask": False},
+        ]
     if path == "/rest/api/3/serverInfo":
         return {"baseUrl": "https://test.atlassian.net"}
     if path == "/rest/agile/1.0/board/42/sprint":

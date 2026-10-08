@@ -44,6 +44,7 @@ from jflow.core.actions.sprint import (
 from jflow.core.actions.labels import add_labels, remove_labels, set_labels
 from jflow.core.actions.chain import execute_chain
 from jflow.core.actions.fields import (
+    convert_issue_type,
     update_field,
     update_summary,
     update_description,
@@ -379,6 +380,12 @@ def issue_create(
     description: Optional[str] = typer.Option(
         None, "--description", help="Description (multiline OK; newlines become paragraphs)"
     ),
+    parent: Optional[str] = typer.Option(
+        None,
+        "--parent",
+        help="Parent issue key (required for Sub-task types)",
+        callback=_optional_issue_key_callback,
+    ),
     template: Optional[str] = typer.Option(None, "--template", "-T", help="Template name from config"),
     var: Optional[List[str]] = typer.Option(None, "--var", "-V", help="Template variable in key=value format"),
 ):
@@ -396,6 +403,7 @@ def issue_create(
         description=description,
         template_name=template,
         template_vars=_parse_vars(var),
+        parent=parent,
     )
     _emit(ctx, config, result)
 
@@ -970,6 +978,33 @@ def cli_update_parent(
     value = _require_value_or_clear(value=parent_key, clear=clear)
     client = JiraClient.from_settings(config.user)
     res = update_parent(client, issue_key=issue_key, parent_key=value)
+    _emit(ctx, config, res)
+
+
+@issue_app.command("convert")
+def cli_convert_issue_type(
+    ctx: typer.Context,
+    issue_key: str = typer.Argument(
+        ...,
+        help="Issue key (e.g. PROJ-123)",
+        callback=_issue_key_callback,
+    ),
+    new_type: str = typer.Argument(..., help="Target issue type name (e.g. Task, Story, Sub-task)"),
+    parent_key: Optional[str] = typer.Argument(
+        None,
+        help="Parent issue key (required when converting to a Sub-task type)",
+        callback=_optional_issue_key_callback,
+    ),
+):
+    """Convert an issue to another type (any Jira issue type)."""
+    config = _load_cfg(ctx)
+    client = JiraClient.from_settings(config.user)
+    res = convert_issue_type(
+        client,
+        issue_key=issue_key,
+        new_type=new_type,
+        parent_key=parent_key,
+    )
     _emit(ctx, config, res)
 
 

@@ -36,7 +36,17 @@ assert rendered.labels == ["automated-bug"]
 # 2. Test Integration with Create Action
 mock_client = MagicMock(spec=JiraClient)
 mock_client.post.return_value = {"id": "1001", "key": "PROJ-200", "self": "http://example"}
-mock_client.get.return_value = {"baseUrl": "https://test.atlassian.net"}
+
+
+def _tpl_get(path, params=None):
+    if path == "/rest/api/3/issuetype":
+        return [{"id": "1", "name": "Bug", "subtask": False}]
+    if path == "/rest/api/3/serverInfo":
+        return {"baseUrl": "https://test.atlassian.net"}
+    return {}
+
+
+mock_client.get.side_effect = _tpl_get
 
 fields_mgr = MagicMock(spec=FieldCacheManager)
 

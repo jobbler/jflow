@@ -22,8 +22,11 @@ from .labels import add_labels, remove_labels, set_labels
 from .chain import execute_chain
 from .system import get_myself, get_server_info, init_config, build_status
 from .fields import (
+    convert_issue_type,
     decode_field_value,
     encode_field_value,
+    resolve_issue_type,
+    validate_subtask_parent,
     update_field,
     update_summary,
     update_description,
@@ -67,8 +70,11 @@ __all__ = [
     "get_server_info",
     "build_status",
     "init_config",
+    "convert_issue_type",
     "decode_field_value",
     "encode_field_value",
+    "resolve_issue_type",
+    "validate_subtask_parent",
     "update_field",
     "update_summary",
     "update_description",

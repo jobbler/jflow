@@ -40,6 +40,8 @@ phase_tests = [
     "test_trailing_text.py",
     "test_current_sprint_link_pr.py",
     "test_client_empty_body.py",
+    "test_workflow_vars.py",
+    "test_issue_convert.py",
 ]
 
 failed = False

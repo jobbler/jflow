@@ -93,12 +93,19 @@ def _create_side_effect(endpoint, payload=None):
 
 
 mock_client.post.side_effect = _create_side_effect
-mock_client.get.side_effect = lambda endpoint, params=None: {
-    "/rest/api/3/serverInfo": {"baseUrl": "https://test.atlassian.net"},
-    "/rest/agile/1.0/board/42/sprint": {
-        "values": [{"id": 99, "name": "Sprint 99", "state": "active"}]
-    },
-}.get(endpoint, {})
+
+
+def _sprint_create_get(endpoint, params=None):
+    if endpoint == "/rest/api/3/issuetype":
+        return [{"id": "1", "name": "Task", "subtask": False}]
+    if endpoint == "/rest/api/3/serverInfo":
+        return {"baseUrl": "https://test.atlassian.net"}
+    if endpoint == "/rest/agile/1.0/board/42/sprint":
+        return {"values": [{"id": 99, "name": "Sprint 99", "state": "active"}]}
+    return {}
+
+
+mock_client.get.side_effect = _sprint_create_get
 
 fields_mgr = MagicMock(spec=FieldCacheManager)
 created = create_issue(
@@ -134,7 +141,7 @@ no_board = AppConfig(
 )
 mock_client2 = MagicMock(spec=JiraClient)
 mock_client2.post.return_value = {"key": "PROJ-1"}
-mock_client2.get.return_value = {"baseUrl": "https://test.atlassian.net"}
+mock_client2.get.side_effect = _sprint_create_get
 try:
     create_issue(
         client=mock_client2,

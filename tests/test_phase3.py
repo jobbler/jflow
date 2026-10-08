@@ -12,7 +12,20 @@ config = load_config()
 
 mock_client = MagicMock(spec=JiraClient)
 mock_client.post.return_value = {"id": "10000", "key": "TEST-1", "self": "https://..."}
-mock_client.get.return_value = {"baseUrl": "https://test.atlassian.net"}
+
+
+def _phase3_get(path, params=None):
+    if path == "/rest/api/3/issuetype":
+        return [
+            {"id": "1", "name": "Story", "subtask": False},
+            {"id": "2", "name": "Task", "subtask": False},
+        ]
+    if path == "/rest/api/3/serverInfo":
+        return {"baseUrl": "https://test.atlassian.net"}
+    return {}
+
+
+mock_client.get.side_effect = _phase3_get
 
 mock_fields = MagicMock(spec=FieldCacheManager)
 mock_fields.resolve_field.return_value = None

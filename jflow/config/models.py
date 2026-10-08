@@ -67,6 +67,7 @@ class IssueTemplate(BaseModel):
     description: Optional[str] = None
     issue_type: Optional[str] = None
     project: Optional[str] = None
+    parent: Optional[str] = None
     labels: List[str] = Field(default_factory=list)
     components: List[str] = Field(default_factory=list)
     fields: Dict[str, Any] = Field(default_factory=dict)

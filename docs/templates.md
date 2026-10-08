@@ -18,7 +18,7 @@ Templates live under `templates:` in `user.yaml` (default path `~/.config/jflow/
 | `issue create -T name -V key=value` | Reusable shapes (bugs, chores) with placeholders filled at invoke time |
 | Chain `template_name` + `template_vars` or `issue chain -V` | Same reusable shape inside a multi-step workflow |
 
-Templates set **create** fields: summary, description, type, project, labels, **components**, and optional **named fields**. They do **not** transition status. To put the new issue on the active sprint, use the `@current_sprint` token (requires `defaults.board` in `user.yaml`):
+Templates set **create** fields: summary, description, type, project, **parent** (for Sub-task), labels, **components**, and optional **named fields**. They do **not** transition status. To put the new issue on the active sprint, use the `@current_sprint` token (requires `defaults.board` in `user.yaml`):
 
 ```bash
 jflow issue create -T bug_report -V component=Auth -V env=Prod -V steps="Click login"
@@ -40,6 +40,10 @@ templates:
       Sprint: "@current_sprint"
     # optional:
     # project: "PROJ"
+  breakdown:
+    summary: "{summary}"
+    issue_type: "Sub-task"
+    parent: "{parent}"
 ```
 
 | Field | Required | Notes |
@@ -48,6 +52,7 @@ templates:
 | `description` | no | Supports `{placeholders}` |
 | `issue_type` | no | Falls back to CLI / defaults |
 | `project` | no | Falls back to CLI / defaults |
+| `parent` | for Sub-task | Parent issue key; supports `{placeholders}`. Required when `issue_type` is a sub-task type. CLI `--parent` overrides the template. Not used for epic links (use `jflow issue parent`). |
 | `labels` | no | Applied on create |
 | `components` | no | List of component names; string entries support `{placeholders}` |
 | `fields` | no | Map of **field display name** → value (custom or system). Names must match the [field cache](fields.md). Values support `{placeholders}` in strings. Use `@current_sprint` on the Sprint field to add the issue to the active sprint on `defaults.board` after create. |
@@ -77,7 +82,13 @@ jflow issue create -T bug_report \
   -V component=Auth -V env=Prod -V steps="Click login"
 ```
 
-CLI flags such as `--project`, `--type`, `--summary`, and `--desc` can override template values when provided.
+CLI flags such as `--project`, `--type`, `--summary`, `--description`, and `--parent` can override template values when provided.
+
+```bash
+jflow issue create -T breakdown -V summary="Break down API" -V parent=PROJ-100
+# or override parent on the CLI:
+jflow issue create -T breakdown -V summary="Break down API" --parent PROJ-200
+```
 
 ## Use a template in a workflow
 

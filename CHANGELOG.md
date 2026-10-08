@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `jflow issue convert KEY TYPE [PARENT]` — change any issue type; parent required when converting to a sub-task type; converting away from a sub-task clears parent
+- `jflow issue create --parent KEY` — create Sub-task in one shot (parent required for sub-task types)
+- Template first-class `parent` (supports `{placeholders}`); CLI `--parent` overrides template
+- Workflow `create` honors `parent`; new chain action `convert` (`issue_type`, optional `parent`)
 - `jflow issue chain --var` / `-V` fills `{placeholders}` in workflow strings and merges into create `template_vars`
 - Chain `sprint` action accepts `"sprint_id": "@current_sprint"` (or omits `sprint_id`) using active sprint on `defaults.board`
 

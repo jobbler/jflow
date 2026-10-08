@@ -41,6 +41,7 @@ def test_nested_issue_group_subcommands():
     assert "field" in lines
     assert "link" in lines
     assert "pullrequest" in lines
+    assert "convert" in lines
     assert "auth" not in lines
 
 
@@ -119,3 +120,15 @@ def test_show_completion_script_uses_typer_instruction():
     assert "bash_complete" not in result.stdout
     assert "_jflow_completion" in result.stdout
     assert "complete " in result.stdout
+
+
+if __name__ == "__main__":
+    test_nested_issue_group_subcommands()
+    test_link_flags_and_root_alias()
+    test_nested_auth_sprint_boards_cache()
+    test_leaf_options_for_issue_show()
+    test_format_value_completer()
+    test_filter_and_comments_and_state_completers()
+    test_show_completion_shell_values()
+    test_show_completion_script_uses_typer_instruction()
+    print("✅ Shell completion tests passed successfully!")
