@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `${VAR}` / `${VAR:-default}` environment variable references in any string value of
+  `user.yaml` (e.g. `api_token: "${JIRA_API_TOKEN}"`), expanded after parsing so values
+  cannot alter the YAML structure; `$$` escapes a literal `$`; unset variables raise a
+  clear error naming the offending config key
+
 ## [0.2.7] - 2026-10-08
 
 ### Added

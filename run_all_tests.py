@@ -26,6 +26,7 @@ phase_tests = [
     "test_phase8.py",
     "test_phase9.py",
     "test_config_paths.py",
+    "test_env_expansion.py",
     "test_staging_runner.py",
     "test_adf_text_fields.py",
     "test_field_schema.py",

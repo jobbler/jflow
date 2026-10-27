@@ -126,6 +126,28 @@ jira:
 
 Also set `defaults.project` (and optional `defaults.board` as a board id or name) for fewer CLI flags.
 
+### Reference environment variables
+
+Any string value in `user.yaml` can reference an environment variable, which keeps
+secrets out of the file:
+
+```yaml
+jira:
+  domain: "${JIRA_DOMAIN}"
+  email: "${JIRA_EMAIL}"
+  api_token: "${JIRA_API_TOKEN}"
+defaults:
+  project: "${JFLOW_PROJECT:-PROJ}"   # fallback when unset
+```
+
+- `${VAR}` expands the variable; jflow fails with a clear error if it is unset.
+- `${VAR:-default}` uses `default` when the variable is unset or empty.
+- `$$` escapes a literal `$` (so `$${VAR}` stays `${VAR}`).
+- Expansion applies to string values only and is not recursive.
+
+Expansion happens after the YAML is parsed, so environment values cannot change the
+file's structure.
+
 ### Override config paths
 
 Default is `~/.config/jflow/user.yaml`. Most commands accept an alternate file anywhere on the filesystem:

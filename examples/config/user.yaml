@@ -8,7 +8,11 @@ jira:
   auth: "api_token"
   domain: "your-domain.atlassian.net"
   email: "your-email@example.com"
-  api_token: "YOUR_JIRA_API_TOKEN"
+  # Any string value may reference environment variables:
+  #   ${VAR}            expand; error if unset
+  #   ${VAR:-default}   fallback when unset or empty
+  #   $$                literal "$" (so $${VAR} stays ${VAR})
+  api_token: "${JIRA_API_TOKEN:-You-need-to-set-a-token}"
   # --- OAuth 2.0 (3LO); see docs/auth.md ---
   # auth: "oauth"
   # domain: "your-domain.atlassian.net"

@@ -13,7 +13,8 @@ DEFAULT_USER_YAML = """jira:
   auth: "api_token"
   domain: "your-domain.atlassian.net"
   email: "your-email@example.com"
-  api_token: "YOUR_JIRA_API_TOKEN"
+  # Values may reference environment variables as ${VAR} or ${VAR:-default}.
+  api_token: "${JIRA_API_TOKEN}"
   # --- OAuth 2.0 (3LO); see docs/auth.md ---
   # auth: "oauth"
   # domain: "your-domain.atlassian.net"   # used to pick cloudId after login
@@ -51,6 +52,7 @@ jql_aliases:
   active-sprint: "project = PROJ AND sprint in openSprints()"
   project-open: "project = {project} AND status != Closed"
 """
+
 
 def get_myself(client: JiraClient) -> Dict[str, Any]:
     """Fetches details for the currently authenticated Jira user (friendly keys)."""

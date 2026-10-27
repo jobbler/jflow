@@ -19,6 +19,23 @@ jira:
   api_token: "YOUR_JIRA_API_TOKEN"
 ```
 
+To keep credentials out of `user.yaml`, reference environment variables instead:
+
+```yaml
+jira:
+  domain: "${JIRA_DOMAIN}"
+  email: "${JIRA_EMAIL}"
+  api_token: "${JIRA_API_TOKEN}"
+defaults:
+  project: "${JFLOW_PROJECT:-PROJ}"   # fallback when unset
+```
+
+- `${VAR}` expands the variable; jflow fails with an error naming the config key if
+  it is not set.
+- `${VAR:-default}` uses `default` when the variable is unset or empty.
+- `$$` escapes a literal `$` (so `$${VAR}` stays `${VAR}`).
+- Expansion applies to string values only, after the YAML is parsed, and is not recursive.
+
 Create a token at [Atlassian API tokens](https://id.atlassian.com/manage-profile/security/api-tokens).
 
 ## OAuth 2.0 (3LO)

@@ -4,7 +4,7 @@
 # Refined / authored with assistance from Cursor (Grok).
 # Created in whole or in part by AI using Cursor (Composer).
 # ==============================================================================
-from .loader import ConfigContext, load_config
-from .models import UserSettings
+from .loader import ConfigEnvError, expand_env, load_config
+from .models import ConfigContext, UserSettings
 
-__all__ = ["load_config", "ConfigContext", "UserSettings"]
+__all__ = ["load_config", "ConfigContext", "ConfigEnvError", "expand_env", "UserSettings"]
