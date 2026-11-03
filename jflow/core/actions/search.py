@@ -3,6 +3,7 @@
 # Co-created through collaborative AI pair programming with Gemini.
 # Refined / authored with assistance from Cursor (Grok).
 # ==============================================================================
+import re
 import warnings
 from typing import Any, Callable, Dict, List, NamedTuple, Optional
 
@@ -200,26 +201,6 @@ def _build_list_row(
     return row
 
 
-def merge_jql_vars(
-    config: Optional[AppConfig],
-    template_vars: Optional[Dict[str, str]] = None,
-) -> Dict[str, str]:
-    """Names for ``{placeholders}`` in JQL.
-
-    ``defaults.project`` fills ``{project}``. ``defaults.jql_vars`` fills the
-    rest and overrides ``{project}`` when it sets that name. ``--var`` / ``-V``
-    values win over both.
-    """
-    merged: Dict[str, str] = {}
-    if config is not None:
-        project = config.user.defaults.project
-        if project:
-            merged["project"] = project
-        for key, value in config.user.defaults.jql_vars.items():
-            merged[key] = value
-    if template_vars:
-        merged.update(template_vars)
-    return merged
 
 
 def search_issues(
@@ -243,9 +224,16 @@ def search_issues(
     from jflow.core.templates import render_string
 
     resolved_jql = config.resolve_jql(jql) if config else jql
-    jql_vars = merge_jql_vars(config, template_vars)
-    if jql_vars:
-        resolved_jql = render_string(resolved_jql, jql_vars) or resolved_jql
+    if config is not None or template_vars:
+        var_map = config.build_vars(template_vars) if config is not None else (template_vars or {})
+        resolved_jql = render_string(resolved_jql, var_map) or resolved_jql
+        unknown = re.findall(r"\{([a-zA-Z0-9_]+)\}", resolved_jql)
+        if unknown:
+            raise ValueError(
+                "Unknown JQL placeholder(s): "
+                + ", ".join(f"{{{name}}}" for name in sorted(set(unknown)))
+                + ". Define them under defaults.vars in user.yaml or pass --var/-V name=value."
+            )
 
     effective_fields = list_fields
     if effective_fields is None and config is not None:

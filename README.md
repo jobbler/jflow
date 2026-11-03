@@ -200,7 +200,7 @@ jflow create -T bug_report \
 jflow query 'assignee = currentUser() ORDER BY updated DESC'
 jflow issue search my-bugs
 jflow query project-open --var project=PROJ
-# {project} can also come from defaults.project; other names from defaults.jql_vars
+# {project} can also come from defaults.project; other names from defaults.vars
 
 # List my open issues / show one
 jflow list --filter open

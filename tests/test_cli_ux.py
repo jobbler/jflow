@@ -69,12 +69,12 @@ def test_search_issues_template_vars():
     assert _searched_jql(client) == "project = FOO AND status != Closed"
 
 
-def test_search_issues_jql_vars_from_config():
+def test_search_issues_vars_from_config():
     client = MagicMock()
     client.post.return_value = {"issues": []}
     config = _config_with_alias(
         project="PROJ",
-        jql_vars={"user": "me", "component": "My Team Component"},
+        vars={"user": "me", "component": "My Team Component"},
     )
     search_issues(client, jql="mine", config=config)
     assert _searched_jql(client) == (
@@ -82,12 +82,28 @@ def test_search_issues_jql_vars_from_config():
     )
 
 
-def test_search_issues_cli_var_overrides_jql_vars():
+def test_search_issues_vars_pointer():
+    client = MagicMock()
+    client.post.return_value = {"issues": []}
+    config = _config_with_alias(project="PROJ", vars={"user": "jira.email"})
+    search_issues(client, jql="assignee = {user} AND project = {project}", config=config)
+    assert _searched_jql(client) == "assignee = a@b.com AND project = PROJ"
+
+
+def test_search_issues_vars_literal_not_path():
+    client = MagicMock()
+    client.post.return_value = {"issues": []}
+    config = _config_with_alias(project="PROJ", vars={"team": "my.team"})
+    search_issues(client, jql="component = {team}", config=config)
+    assert _searched_jql(client) == "component = my.team"
+
+
+def test_search_issues_cli_var_overrides_vars():
     client = MagicMock()
     client.post.return_value = {"issues": []}
     config = _config_with_alias(
         project="PROJ",
-        jql_vars={"user": "me", "component": "My Team Component", "project": "FROM-MAP"},
+        vars={"user": "me", "component": "My Team Component", "project": "FROM-MAP"},
     )
     search_issues(
         client,
@@ -100,16 +116,35 @@ def test_search_issues_cli_var_overrides_jql_vars():
     )
 
 
-def test_search_issues_unknown_placeholder_stays():
+def test_search_issues_unknown_placeholder_raises():
     client = MagicMock()
     client.post.return_value = {"issues": []}
     config = _config_with_alias(project="PROJ")
-    search_issues(
-        client,
-        jql="assignee = {user} AND project = {project}",
-        config=config,
+    try:
+        search_issues(client, jql="summary ~ {word}", config=config)
+        raise SystemExit("FAIL: unknown placeholder did not raise")
+    except ValueError as e:
+        assert "word" in str(e)
+        assert "Unknown JQL placeholder" in str(e)
+
+
+def test_process_template_uses_config_vars():
+    from jflow.config.models import IssueTemplate
+    from jflow.core.templates import process_template
+
+    tpl_config = AppConfig(
+        user=UserConfig(
+            jira=JiraCredentials(domain="test.atlassian.net", email="a@b.com", api_token="tok"),
+            defaults=Defaults(vars={"component": "Auth", "env": "Prod"}),
+            templates={
+                "bug_report": IssueTemplate(
+                    summary="[BUG] {component}: Issue in {env}",
+                )
+            },
+        ),
     )
-    assert _searched_jql(client) == "assignee = {user} AND project = PROJ"
+    rendered = process_template(tpl_config, "bug_report", None)
+    assert rendered.summary == "[BUG] Auth: Issue in Prod"
 
 
 def test_list_jql_uses_config_vars():
@@ -117,10 +152,9 @@ def test_list_jql_uses_config_vars():
 
     client = MagicMock()
     client.post.return_value = {"issues": []}
-    config = _config_with_alias(project="PROJ", jql_vars={"user": "me"})
+    config = _config_with_alias(project="PROJ", vars={"user": "me"})
     list_my_issues(client, jql="assignee = {user} AND project = {project}", config=config)
     assert _searched_jql(client) == "assignee = me AND project = PROJ"
-
 
 def test_deeper_cli_shape():
     runner = CliRunner()
@@ -151,9 +185,12 @@ if __name__ == "__main__":
     test_parse_labels_space_and_comma()
     test_parse_vars()
     test_search_issues_template_vars()
-    test_search_issues_jql_vars_from_config()
-    test_search_issues_cli_var_overrides_jql_vars()
-    test_search_issues_unknown_placeholder_stays()
+    test_search_issues_vars_from_config()
+    test_search_issues_vars_pointer()
+    test_search_issues_vars_literal_not_path()
+    test_search_issues_cli_var_overrides_vars()
+    test_search_issues_unknown_placeholder_raises()
+    test_process_template_uses_config_vars()
     test_list_jql_uses_config_vars()
     test_deeper_cli_shape()
     print("✅ CLI UX helper tests passed successfully!")
