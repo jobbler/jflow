@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `defaults.list_fields` in `user.yaml` and repeatable `--fields` on `jflow list`
+  / `jflow query` (and `issue list` / `issue search`) to choose and order the
+  displayed columns by system alias, custom field name, or `customfield_*` id;
+  `key` is shown only when listed, and unknown names are skipped with a warning
 - `${VAR}` / `${VAR:-default}` environment variable references in any string value of
   `user.yaml` (e.g. `api_token: "${JIRA_API_TOKEN}"`), expanded after parsing so values
   cannot alter the YAML structure; `$$` escapes a literal `$`; unset variables raise a

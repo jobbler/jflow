@@ -63,6 +63,32 @@ defaults:
 
 Unset or empty keeps the built-in set. `jflow show KEY --only status --only summary` overrides the config list for that invocation. Run `jflow cache sync` first so display names resolve.
 
+## Fields shown by `jflow list` and `jflow query`
+
+List output defaults to `Key`, `Type`, `Summary`, `Status`, and `Assignee`. Set `defaults.list_fields` in `user.yaml` to choose and order the columns:
+
+```yaml
+defaults:
+  list_fields:
+    - key
+    - summary
+    - status
+    - updated
+    - Story Points          # display name from cache
+    - customfield_10100     # raw id also accepted
+```
+
+Each entry becomes one column. `key` appears only when you list it. Supported names are system aliases (`summary`, `status`, `type`/`issuetype`, `assignee`, `reporter`, `priority`, `labels`, `components`, `parent`, `created`, `updated`, `description`) plus any field in the cache.
+
+Override the config for one invocation with repeatable `--fields`:
+
+```bash
+jflow list --fields key --fields summary --fields "Story Points"
+jflow query 'project = PROJ' --fields key --fields status --fields updated
+```
+
+`--fields` replaces `defaults.list_fields` for that command. Unknown names are skipped with a warning; run `jflow cache sync` if a custom field is missing. Unset or empty `list_fields` keeps the built-in columns.
+
 See also [output-formats.md](output-formats.md).
 
 ## When to use dedicated commands

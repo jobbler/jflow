@@ -203,6 +203,7 @@ jflow query project-open --var project=PROJ
 
 # List my open issues / show one
 jflow list --filter open
+jflow list --fields key --fields summary --fields status --fields "Story Points"
 jflow show PROJ-123
 jflow show PROJ-123 --comments last
 
@@ -246,14 +247,14 @@ Output format defaults come from config (`markdown`, `text`, `unix`, `json`, `ya
 | `jflow version` | Package version (no network) |
 | `jflow status` | Client, me, and server sections (health) |
 | `jflow auth login` / `logout` / `status` | OAuth 2.0 (3LO) token management |
-| `jflow query` | JQL or alias search (same as `issue search`); supports `--var` |
+| `jflow query` | JQL or alias search (same as `issue search`); supports `--var` and `--fields` |
 | `jflow show` / `list` / `create` / `assign` / `comment` / `label` / `change` | Top-level aliases for common `issue` commands |
 | `jflow boards list` | List all Agile boards (id and name; optional `--limit`) |
 | `jflow boards search` | Search boards by name substring (`-q`; optional `--limit`) |
 | `jflow issue create` | Create issue (optional `--template` / `--var` / `--parent`; Sub-task requires `--parent`) |
-| `jflow issue list` | List my issues (`--filter` / `--status` / `--jql`) |
+| `jflow issue list` | List my issues (`--filter` / `--status` / `--jql`; `--fields` selects columns) |
 | `jflow issue show ISSUE` | Show issue details (`--comments none\|last\|all\|N`, `--only`) |
-| `jflow issue search` | JQL or alias search; supports `--var` |
+| `jflow issue search` | JQL or alias search; supports `--var` and `--fields` |
 | `jflow issue assign` / `reporter` | Set assignee or reporter |
 | `jflow issue change ISSUE STATUS` | Change issue workflow status |
 | `jflow issue convert ISSUE TYPE [PARENT]` | Change issue type (parent required for Sub-task) |

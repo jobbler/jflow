@@ -55,6 +55,8 @@ class Defaults(BaseModel):
     board: Optional[str] = None
     # Field names/ids for `jflow show` / `jflow issue show`. None/empty = built-in set.
     show_fields: Optional[List[str]] = None
+    # Field names/ids for `jflow list` / `jflow query`. None/empty = built-in columns.
+    list_fields: Optional[List[str]] = None
 
 
 class ProjectConfig(BaseModel):

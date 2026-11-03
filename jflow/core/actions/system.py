@@ -35,6 +35,14 @@ defaults:
   #   - assignee
   #   - description
   #   - Story Points
+  # Optional: columns for `jflow list` / `jflow query`.
+  # Unset/empty keeps the built-in columns. CLI --fields overrides this list.
+  # list_fields:
+  #   - key
+  #   - summary
+  #   - status
+  #   - updated
+  #   - Story Points
 projects:
   PROJ:
     default_issue_type: "Task"

@@ -215,6 +215,10 @@ def _emit(ctx: typer.Context, config, data) -> None:
     typer.echo(format_output(data, format_type=_fmt(ctx, config)))
 
 
+def _warn_stderr(message: str) -> None:
+    typer.echo(message, err=True)
+
+
 _COMPLETE_SHELLS = ("bash", "zsh", "fish")
 _OUTPUT_FORMATS = ("markdown", "text", "unix", "json", "yaml")
 _COMMENT_MODES = ("none", "last", "all")
@@ -585,6 +589,12 @@ def issue_list(
     jql: Optional[str] = typer.Option(None, "--jql", help="Raw JQL or alias (overrides --filter/--status)"),
     max_results: int = typer.Option(15, "--limit", "-l", help="Max results to return"),
     var: Optional[List[str]] = typer.Option(None, "--var", "-V", help="JQL variable in key=value format"),
+    fields: Optional[List[str]] = typer.Option(
+        None,
+        "--fields",
+        "-F",
+        help="Columns to display (repeatable); overrides defaults.list_fields",
+    ),
 ):
     """List issues assigned to you (filter presets, status, or JQL)."""
     config = _load_cfg(ctx)
@@ -597,6 +607,8 @@ def issue_list(
         max_results=max_results,
         config=config,
         template_vars=_parse_vars(var),
+        list_fields=fields if fields else config.user.defaults.list_fields,
+        on_warning=_warn_stderr,
     )
     _emit(ctx, config, results)
 
@@ -647,6 +659,12 @@ def issue_search(
     ),
     max_results: int = typer.Option(15, "--limit", "-l", help="Max results to return"),
     var: Optional[List[str]] = typer.Option(None, "--var", "-V", help="JQL variable in key=value format"),
+    fields: Optional[List[str]] = typer.Option(
+        None,
+        "--fields",
+        "-F",
+        help="Columns to display (repeatable); overrides defaults.list_fields",
+    ),
 ):
     """Search issues with raw JQL or a configured alias."""
     config = _load_cfg(ctx)
@@ -657,6 +675,8 @@ def issue_search(
         max_results=max_results,
         config=config,
         template_vars=_parse_vars(var),
+        list_fields=fields if fields else config.user.defaults.list_fields,
+        on_warning=_warn_stderr,
     )
     _emit(ctx, config, results)
 

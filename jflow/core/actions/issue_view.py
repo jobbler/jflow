@@ -8,6 +8,11 @@
 from typing import Any, Dict, List, Optional, Tuple
 
 from jflow.core.adf import adf_to_text
+from jflow.core.actions.field_selection import (
+    API_TO_DETAIL as _API_TO_DETAIL,
+    INPUT_TO_API as _INPUT_TO_API,
+    flatten_system_value as _flatten_system_value,
+)
 from jflow.core.actions.fields import decode_field_value
 from jflow.core.client import JiraClient
 from jflow.core.fields import FieldCacheManager
@@ -27,40 +32,6 @@ ISSUE_SHOW_FIELDS = [
     "updated",
     "description",
 ]
-
-# Input aliases (detail keys / short names) → Jira API field id.
-_INPUT_TO_API: Dict[str, str] = {
-    "summary": "summary",
-    "status": "status",
-    "type": "issuetype",
-    "issuetype": "issuetype",
-    "issue type": "issuetype",
-    "assignee": "assignee",
-    "reporter": "reporter",
-    "priority": "priority",
-    "labels": "labels",
-    "components": "components",
-    "parent": "parent",
-    "created": "created",
-    "updated": "updated",
-    "description": "description",
-}
-
-# API field id → detail dict key used in show output.
-_API_TO_DETAIL: Dict[str, str] = {
-    "summary": "summary",
-    "status": "status",
-    "issuetype": "type",
-    "assignee": "assignee",
-    "reporter": "reporter",
-    "priority": "priority",
-    "labels": "labels",
-    "components": "components",
-    "parent": "parent",
-    "created": "created",
-    "updated": "updated",
-    "description": "description",
-}
 
 
 def parse_comments_arg(comments: str) -> Tuple[str, Optional[int]]:
@@ -107,35 +78,6 @@ def _fetch_comments(client: JiraClient, issue_key: str) -> List[Dict[str, Any]]:
         if not values or (total is not None and start_at >= total) or len(values) < page_size:
             break
     return collected
-
-
-def _flatten_system_value(api_id: str, raw: Any) -> Any:
-    """Flatten known system fields into the familiar show detail values."""
-    if api_id == "summary":
-        return raw or ""
-    if api_id == "status":
-        return (raw or {}).get("name", "") if isinstance(raw, dict) else (raw or "")
-    if api_id == "issuetype":
-        return (raw or {}).get("name", "") if isinstance(raw, dict) else (raw or "")
-    if api_id == "assignee":
-        return raw.get("displayName") if raw else "Unassigned"
-    if api_id == "reporter":
-        return raw.get("displayName") if raw else ""
-    if api_id == "priority":
-        return (raw or {}).get("name", "") if isinstance(raw, dict) else (raw or "")
-    if api_id == "labels":
-        return raw or []
-    if api_id == "components":
-        components = raw or []
-        return [c.get("name") for c in components if isinstance(c, dict) and c.get("name")]
-    if api_id == "parent":
-        parent = raw or {}
-        return parent.get("key") or "" if isinstance(parent, dict) else ""
-    if api_id in ("created", "updated"):
-        return raw or ""
-    if api_id == "description":
-        return adf_to_text(raw)
-    return raw
 
 
 def needs_field_cache(names: Optional[List[str]]) -> bool:
