@@ -24,6 +24,11 @@ DEFAULT_USER_YAML = """jira:
   # oauth_cloud_id: null                 # optional override after first login
 defaults:
   project: "PROJ"
+  # Values for {placeholders} in queries, templates, and workflows.
+  # A dotted path like "jira.email" points at that setting. --var / -V wins.
+  # vars:
+  #   user: jira.email
+  #   component: "My Team Component"
   issue_type: "Task"
   output_format: "markdown"
   board: null

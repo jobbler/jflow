@@ -3,6 +3,7 @@
 # Co-created through collaborative AI pair programming with Gemini.
 # Refined / authored with assistance from Cursor (Grok).
 # ==============================================================================
+import re
 import warnings
 from typing import Any, Callable, Dict, List, NamedTuple, Optional
 
@@ -200,6 +201,8 @@ def _build_list_row(
     return row
 
 
+
+
 def search_issues(
     client: JiraClient,
     jql: str,
@@ -221,8 +224,16 @@ def search_issues(
     from jflow.core.templates import render_string
 
     resolved_jql = config.resolve_jql(jql) if config else jql
-    if template_vars:
-        resolved_jql = render_string(resolved_jql, template_vars) or resolved_jql
+    if config is not None or template_vars:
+        var_map = config.build_vars(template_vars) if config is not None else (template_vars or {})
+        resolved_jql = render_string(resolved_jql, var_map) or resolved_jql
+        unknown = re.findall(r"\{([a-zA-Z0-9_]+)\}", resolved_jql)
+        if unknown:
+            raise ValueError(
+                "Unknown JQL placeholder(s): "
+                + ", ".join(f"{{{name}}}" for name in sorted(set(unknown)))
+                + ". Define them under defaults.vars in user.yaml or pass --var/-V name=value."
+            )
 
     effective_fields = list_fields
     if effective_fields is None and config is not None:

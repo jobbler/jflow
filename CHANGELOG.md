@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `defaults.vars` fills `{placeholders}` in `jflow query`, `jflow issue search`,
+  and `jflow list --jql` (and `issue list --jql`). `{project}` also uses
+  `defaults.project`. `--var` / `-V` wins for that command. Vars now also fill
+  issue templates and workflow chains. A value may be a literal or a dotted
+  config path like `jira.email`. Unknown `{placeholders}` in JQL raise a clear
+  error.
+
 ## [0.3.0] - 2026-11-02
 
 ### Added

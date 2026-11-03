@@ -23,6 +23,11 @@ jira:
 
 defaults:
   project: "PROJ"
+  # Values for {placeholders} in queries, templates, and workflows.
+  # A dotted path like "jira.email" points at that setting. --var / -V wins.
+  # vars:
+  #   user: jira.email
+  #   component: "My Team Component"
   issue_type: "Task"
   output_format: "markdown" # Options: markdown, text, unix, json, yaml (table is an alias for text)
   board: null  # Board id or name for sprint commands (e.g. "42" or "PROJ board")

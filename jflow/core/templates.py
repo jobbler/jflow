@@ -76,7 +76,7 @@ def process_template(
         )
 
     template = config.user.templates[template_name]
-    vars_dict = variables or {}
+    vars_dict = config.build_vars(variables)
 
     rendered_summary = render_string(template.summary, vars_dict)
     rendered_description = render_string(template.description, vars_dict)
