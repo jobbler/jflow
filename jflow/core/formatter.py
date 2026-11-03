@@ -31,6 +31,8 @@ FIELD_ORDER_KEY = "_jflow_field_order"
 _INTERNAL_KEYS = frozenset({FIELD_ORDER_KEY})
 # Jira often emits offsets like +0000 instead of +00:00.
 _JIRA_OFFSET_RE = re.compile(r"([+-]\d{2})(\d{2})$")
+# Full Jira datetimes; date-only values (e.g. due dates) are left alone.
+_JIRA_DATETIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
 
 
 def flatten_dict(data: Dict[str, Any], prefix: str = "") -> Dict[str, Any]:
@@ -67,8 +69,31 @@ def _parse_jira_datetime(value: str) -> Optional[datetime]:
         return None
 
 
+def _relative_time(dt: datetime) -> str:
+    """Human relative hint such as ``2 days ago`` or ``in 3 hours``."""
+    now = datetime.now(dt.tzinfo) if dt.tzinfo else datetime.now()
+    seconds = int((now - dt).total_seconds())
+    future = seconds < 0
+    seconds = abs(seconds)
+
+    units = (
+        (365 * 24 * 60 * 60, "year"),
+        (30 * 24 * 60 * 60, "month"),
+        (7 * 24 * 60 * 60, "week"),
+        (24 * 60 * 60, "day"),
+        (60 * 60, "hour"),
+        (60, "minute"),
+    )
+    for unit_seconds, name in units:
+        if seconds >= unit_seconds:
+            count = seconds // unit_seconds
+            phrase = f"{count} {name}{'' if count == 1 else 's'}"
+            return f"in {phrase}" if future else f"{phrase} ago"
+    return "in a moment" if future else "just now"
+
+
 def format_timestamp_human(value: str) -> str:
-    """Local time first, original ISO in parentheses. Non-parseable values pass through."""
+    """Local time plus a relative hint; seconds/milliseconds are omitted."""
     raw = value if isinstance(value, str) else str(value)
     dt = _parse_jira_datetime(raw)
     if dt is None:
@@ -78,7 +103,7 @@ def format_timestamp_human(value: str) -> str:
     local_str = local.strftime("%Y-%m-%d %H:%M")
     if tz:
         local_str = f"{local_str} {tz}"
-    return f"{local_str} ({raw})"
+    return f"{local_str} ({_relative_time(dt)})"
 
 
 def _format_scalar(value: Any, *, human_dates: bool = False, date_key: bool = False) -> str:
@@ -94,8 +119,9 @@ def _format_scalar(value: Any, *, human_dates: bool = False, date_key: bool = Fa
         return ",".join(str(item) for item in value)
     if isinstance(value, bool):
         return "true" if value else "false"
-    if human_dates and date_key and isinstance(value, str):
-        return format_timestamp_human(value)
+    if human_dates and isinstance(value, str):
+        if date_key or _JIRA_DATETIME_RE.match(value.strip()):
+            return format_timestamp_human(value)
     return str(value)
 
 
@@ -362,7 +388,10 @@ def _format_aligned_table(rows: List[Dict[str, Any]]) -> str:
     if not rows:
         return ""
     headers = list(rows[0].keys())
-    str_rows = [[_format_scalar(item.get(h, "")) for h in headers] for item in rows]
+    str_rows = [
+        [_format_scalar(item.get(h, ""), human_dates=True) for h in headers]
+        for item in rows
+    ]
     widths = [len(str(h)) for h in headers]
     for row in str_rows:
         for i, cell in enumerate(row):
@@ -396,13 +425,17 @@ def _format_list_markdown(rows: List[Dict[str, Any]]) -> str:
             for k, v in item.items():
                 if str(k).casefold() in used or _is_empty(v):
                     continue
-                extras.append(f"{k}: {v}")
+                extras.append(f"{k}: {_format_scalar(v, human_dates=True)}")
             line = " — ".join(parts)
             if extras:
                 line = f"{line} ({'; '.join(extras)})"
             lines.append(f"- {line}")
         else:
-            bits = [f"{k}: {v}" for k, v in item.items() if not _is_empty(v)]
+            bits = [
+                f"{k}: {_format_scalar(v, human_dates=True)}"
+                for k, v in item.items()
+                if not _is_empty(v)
+            ]
             lines.append(f"- {'; '.join(bits)}")
     return "\n".join(lines)
 

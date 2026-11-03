@@ -61,7 +61,51 @@ defaults:
     - customfield_10100     # raw id also accepted
 ```
 
-Unset or empty keeps the built-in set. `jflow show KEY --only status --only summary` overrides the config list for that invocation. Run `jflow cache sync` first so display names resolve.
+Unset or empty keeps the built-in set. `jflow show KEY --only status --only summary` overrides the config list for that invocation. Run `jflow cache sync` first so display names resolve. The `current_sprint` virtual field is accepted here too (see below).
+
+## Fields shown by `jflow list` and `jflow query`
+
+List output defaults to `Key`, `Type`, `Summary`, `Status`, and `Assignee`. Set `defaults.list_fields` in `user.yaml` to choose and order the columns:
+
+```yaml
+defaults:
+  list_fields:
+    - key
+    - summary
+    - status
+    - updated
+    - Story Points          # display name from cache
+    - customfield_10100     # raw id also accepted
+```
+
+Each entry becomes one column. `key` appears only when you list it. Supported names are system aliases (`summary`, `status`, `type`/`issuetype`, `assignee`, `reporter`, `priority`, `labels`, `components`, `parent`, `created`, `updated`, `description`), any field in the cache, and the `current_sprint` virtual field.
+
+Override the config for one invocation with repeatable `--fields`:
+
+```bash
+jflow list --fields key --fields summary --fields "Story Points"
+jflow query 'project = PROJ' --fields key --fields status --fields updated
+```
+
+`--fields` replaces `defaults.list_fields` for that command. Unknown names are skipped with a warning; run `jflow cache sync` if a custom field is missing. Unset or empty `list_fields` keeps the built-in columns.
+
+### The `current_sprint` virtual field
+
+`current_sprint` (also `"Current Sprint"`) is a computed field named **Current Sprint**. It shows the active sprint on `defaults.board` when the issue's Sprint field includes that sprint; otherwise it shows `Backlog`.
+
+```yaml
+defaults:
+  board: "42"
+  list_fields: [key, summary, current_sprint]
+  show_fields: [summary, status, current_sprint]
+```
+
+```bash
+jflow list --fields key --fields current_sprint
+jflow show PROJ-123 --only current_sprint
+```
+
+It requires `defaults.board` and a `Sprint` field in the cache. When the board is not configured, list/query skip the column with a warning and show exits with an error. When the Sprint field is missing from the cache, run `jflow cache sync`.
 
 See also [output-formats.md](output-formats.md).
 

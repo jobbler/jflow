@@ -5,6 +5,9 @@
 # ==============================================================================
 # Created in whole or in part by AI using Cursor (Grok).
 """Structured issue / markdown / date formatting tests for the CLI formatter."""
+import re
+from datetime import datetime, timedelta, timezone
+
 from jflow.core.formatter import (
     flatten_dict,
     format_output,
@@ -56,13 +59,28 @@ assert "Key" in list_out
 assert "PROJ-1" in list_out
 assert "┏" not in list_out
 
-# --- timestamps: local + ISO ---
+# --- timestamps: local time + relative hint ---
 iso = "2026-09-20T14:32:11.000+0000"
 human_ts = format_timestamp_human(iso)
-assert iso in human_ts
-assert human_ts.endswith(f"({iso})")
-assert "2026-09-20" in human_ts
+assert iso not in human_ts
+assert ".000" not in human_ts
+assert re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}( \S+)? \([^)]+\)$", human_ts)
+assert "ago" in human_ts
 assert format_timestamp_human("not-a-date") == "not-a-date"
+
+now = datetime.now(timezone.utc)
+two_days_ago = (now - timedelta(days=2, hours=1)).strftime(
+    "%Y-%m-%dT%H:%M:%S.000+0000"
+)
+assert "(2 days ago)" in format_timestamp_human(two_days_ago)
+in_three_hours = (now + timedelta(hours=3, minutes=10)).strftime(
+    "%Y-%m-%dT%H:%M:%S.000+0000"
+)
+assert "(in 3 hours)" in format_timestamp_human(in_three_hours)
+# Date-only values (e.g. due dates) are not turned into timestamps.
+due_out = format_output([{"Due": "2026-11-02"}], format_type="text")
+assert "2026-11-02" in due_out
+assert "(" not in due_out
 
 # --- issue detail: markdown separates title / metadata / comments ---
 issue = {
@@ -109,7 +127,9 @@ assert "First comment" in md
 assert "### Bob —" in md
 assert "Second comment" in md
 assert " | " not in md  # comments must not be scalar-joined
-assert iso in md  # ISO retained alongside local
+assert iso not in md  # raw ISO is not shown in human output
+assert "2026-09-20T15:00:00.000+0000" not in md
+assert "ago" in md
 
 text_issue = format_output(issue, format_type="text")
 assert text_issue.startswith("PROJ-123: Fix null pointer")

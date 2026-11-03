@@ -18,6 +18,8 @@ defaults:
   output_format: "markdown"   # markdown | text | unix | json | yaml  (table ≈ text)
   # Optional: fields for `jflow show` (names or customfield ids). See fields.md.
   # show_fields: [summary, status, assignee, "Story Points"]
+  # Optional: columns for `jflow list` / `jflow query`.
+  # list_fields: [key, summary, status, updated]
 ```
 
 ## Formats
@@ -35,11 +37,13 @@ defaults:
 
 Human formats separate title, metadata, description, and comments. Metadata prints every non-empty field from the issue payload (except `key`/`summary`/`description`/`comments`), in a stable order. Which fields are fetched is controlled by `defaults.show_fields` or `--only` (see [fields.md](fields.md)).
 
-Timestamps in human formats show **local time and ISO together**, for example:
+List output (`jflow list`, `jflow query`) uses `defaults.list_fields` or `--fields` to choose its columns; see [fields.md](fields.md#fields-shown-by-jflow-list-and-jflow-query).
 
-`2026-09-20 09:32 CDT (2026-09-20T14:32:11.000+0000)`
+Timestamps in human formats show **local time and a relative hint**, for example:
 
-Machine formats (`json`, `yaml`, `unix`) keep the original ISO string only.
+`2026-09-20 09:32 CDT (2 days ago)`
+
+Seconds and milliseconds are omitted. This applies to issue metadata, comments, and `created`/`updated` columns in list output. Machine formats (`json`, `yaml`, `unix`) keep the original ISO string only.
 
 Description and comment bodies are plain text (from ADF), not rich markdown.
 
