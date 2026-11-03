@@ -23,6 +23,11 @@ jira:
 
 defaults:
   project: "PROJ"
+  # Names for {placeholders} in queries and aliases. --var / -V wins.
+  # {project} uses defaults.project unless jql_vars sets project too.
+  # jql_vars:
+  #   user: me
+  #   component: "My Team Component"
   issue_type: "Task"
   output_format: "markdown" # Options: markdown, text, unix, json, yaml (table is an alias for text)
   board: null  # Board id or name for sprint commands (e.g. "42" or "PROJ board")

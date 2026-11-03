@@ -33,32 +33,93 @@ def test_parse_vars():
     assert _parse_vars(["noequals"]) == {}
 
 
-def test_search_issues_template_vars():
-    client = MagicMock()
-    client.post.return_value = {"issues": []}
-    config = AppConfig(
+def _config_with_alias(**defaults_kwargs):
+    return AppConfig(
         user=UserConfig(
             jira=JiraCredentials(
                 domain="x.atlassian.net",
                 email="a@b.com",
                 api_token="t",
             ),
-            defaults=Defaults(),
+            defaults=Defaults(**defaults_kwargs),
             jql_aliases={
                 "project-open": "project = {project} AND status != Closed",
+                "mine": "assignee = {user} AND project = {project} AND component = {component}",
             },
         ),
     )
+
+
+def _searched_jql(client):
+    args, _kwargs = client.post.call_args
+    assert args[0] == "/rest/api/3/search/jql"
+    return args[1]["jql"]
+
+
+def test_search_issues_template_vars():
+    client = MagicMock()
+    client.post.return_value = {"issues": []}
+    config = _config_with_alias()
     search_issues(
         client,
         jql="project-open",
         config=config,
         template_vars={"project": "FOO"},
     )
-    args, _kwargs = client.post.call_args
-    assert args[0] == "/rest/api/3/search/jql"
-    payload = args[1]
-    assert payload["jql"] == "project = FOO AND status != Closed"
+    assert _searched_jql(client) == "project = FOO AND status != Closed"
+
+
+def test_search_issues_jql_vars_from_config():
+    client = MagicMock()
+    client.post.return_value = {"issues": []}
+    config = _config_with_alias(
+        project="PROJ",
+        jql_vars={"user": "me", "component": "My Team Component"},
+    )
+    search_issues(client, jql="mine", config=config)
+    assert _searched_jql(client) == (
+        "assignee = me AND project = PROJ AND component = My Team Component"
+    )
+
+
+def test_search_issues_cli_var_overrides_jql_vars():
+    client = MagicMock()
+    client.post.return_value = {"issues": []}
+    config = _config_with_alias(
+        project="PROJ",
+        jql_vars={"user": "me", "component": "My Team Component", "project": "FROM-MAP"},
+    )
+    search_issues(
+        client,
+        jql="mine",
+        config=config,
+        template_vars={"user": "not-me"},
+    )
+    assert _searched_jql(client) == (
+        "assignee = not-me AND project = FROM-MAP AND component = My Team Component"
+    )
+
+
+def test_search_issues_unknown_placeholder_stays():
+    client = MagicMock()
+    client.post.return_value = {"issues": []}
+    config = _config_with_alias(project="PROJ")
+    search_issues(
+        client,
+        jql="assignee = {user} AND project = {project}",
+        config=config,
+    )
+    assert _searched_jql(client) == "assignee = {user} AND project = PROJ"
+
+
+def test_list_jql_uses_config_vars():
+    from jflow.core.actions.search import list_my_issues
+
+    client = MagicMock()
+    client.post.return_value = {"issues": []}
+    config = _config_with_alias(project="PROJ", jql_vars={"user": "me"})
+    list_my_issues(client, jql="assignee = {user} AND project = {project}", config=config)
+    assert _searched_jql(client) == "assignee = me AND project = PROJ"
 
 
 def test_deeper_cli_shape():
@@ -90,5 +151,9 @@ if __name__ == "__main__":
     test_parse_labels_space_and_comma()
     test_parse_vars()
     test_search_issues_template_vars()
+    test_search_issues_jql_vars_from_config()
+    test_search_issues_cli_var_overrides_jql_vars()
+    test_search_issues_unknown_placeholder_stays()
+    test_list_jql_uses_config_vars()
     test_deeper_cli_shape()
     print("✅ CLI UX helper tests passed successfully!")

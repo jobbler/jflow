@@ -24,6 +24,11 @@ DEFAULT_USER_YAML = """jira:
   # oauth_cloud_id: null                 # optional override after first login
 defaults:
   project: "PROJ"
+  # Names for {placeholders} in queries and aliases. --var / -V wins.
+  # {project} uses defaults.project unless jql_vars sets project too.
+  # jql_vars:
+  #   user: me
+  #   component: "My Team Component"
   issue_type: "Task"
   output_format: "markdown"
   board: null
