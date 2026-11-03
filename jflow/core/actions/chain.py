@@ -34,7 +34,7 @@ def execute_chain(
     """Executes a sequence of Jira actions, reusing the active issue key across steps."""
     results = []
     current_key = initial_key
-    steps = apply_workflow_vars(steps, variables)
+    steps = apply_workflow_vars(steps, variables, config)
 
     for step_index, step in enumerate(steps):
         action = step.get("action")

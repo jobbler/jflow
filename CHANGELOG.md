@@ -13,10 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `defaults.jql_vars` fills `{placeholders}` in `jflow query`, `jflow issue search`,
-  and `jflow list --jql` (and `issue list --jql`). `{project}` also uses
-  `defaults.project`. `--var` / `-V` wins for that command. Unknown
-  placeholders are left as written.
+- `defaults.vars` fills `{placeholders}` in searches (`jflow query`, `jflow issue search`,
+  `jflow list --jql`), issue templates, and workflow chains. `{project}` also uses
+  `defaults.project`. `--var` / `-V` wins for that command. A chain step's own
+  `template_vars` win over the saved names. Unknown placeholders are left as written.
 
 ## [0.3.0] - 2026-11-02
 

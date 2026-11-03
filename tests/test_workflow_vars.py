@@ -244,4 +244,52 @@ try:
 except ValueError as exc:
     assert "defaults.board" in str(exc)
 
+# --- defaults.vars fill templates, and -V wins ---
+from jflow.core.templates import process_template
+
+saved = AppConfig(
+    user=UserConfig(
+        jira=JiraCredentials(domain="test.atlassian.net", email="a@b.com", api_token="tok"),
+        defaults=Defaults(
+            project="PROJ",
+            vars={"component": "Auth", "env": "Staging", "steps": "Click"},
+        ),
+        templates={
+            "bug_report": IssueTemplate(
+                summary="[BUG] {component}: Issue in {env}",
+                description="Steps:\n{steps}",
+                issue_type="Bug",
+                project="{project}",
+            )
+        },
+    )
+)
+filled = process_template(saved, "bug_report")
+assert filled.summary == "[BUG] Auth: Issue in Staging"
+assert filled.project == "PROJ"
+overridden = process_template(saved, "bug_report", {"component": "Billing"})
+assert overridden.summary == "[BUG] Billing: Issue in Staging"
+
+# Settings fill a chain with no -V. Step template_vars beat settings. -V beats the step.
+chained = apply_workflow_vars(
+    [
+        {
+            "action": "create",
+            "summary": "{component}",
+            "template_vars": {"component": "FromStep"},
+        }
+    ],
+    {"component": "FromCLI"},
+    saved,
+)
+assert chained[0]["summary"] == "FromCLI"
+assert chained[0]["template_vars"]["component"] == "FromCLI"
+
+from_settings = apply_workflow_vars(
+    [{"action": "comment", "message": "Hello {component}"}],
+    None,
+    saved,
+)
+assert from_settings[0]["message"] == "Hello Auth"
+
 print("✅ Workflow vars / @current_sprint chain tests passed successfully!")

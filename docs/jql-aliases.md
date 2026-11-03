@@ -19,12 +19,12 @@ jql_aliases:
 
 Placeholders like `{project}` are filled from your settings, then from `--var key=value` (same syntax as issue templates). A `--var` / `-V` value wins for that one search.
 
-`{project}` uses `defaults.project`. Other names live in `defaults.jql_vars`. A name the settings do not know is left as written.
+`{project}` uses `defaults.project`. Other names live in `defaults.vars`. The same list fills templates and chains. A name the settings do not know is left as written.
 
 ```yaml
 defaults:
   project: "PROJ"
-  jql_vars:
+  vars:
     user: me
     component: "My Team Component"
 ```
@@ -48,7 +48,7 @@ jflow issue search 'project = PROJ AND status = "To Do"'
 ## How resolution works
 
 1. `AppConfig.resolve_jql()` looks up the string in `user.jql_aliases` and returns the mapped query or the original input.
-2. `{placeholders}` are filled from `defaults.project` and `defaults.jql_vars`.
+2. `{placeholders}` are filled from `defaults.project` and `defaults.vars`.
 3. `--var` / `-V` replaces a saved name for that one command. Unknown `{placeholders}` stay as written.
 
 The same filling applies to `jflow list --jql` and `jflow issue list --jql`.

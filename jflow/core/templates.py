@@ -11,6 +11,28 @@ from typing import Any, Dict, List, Optional
 from jflow.config.models import AppConfig, IssueTemplate
 
 
+def merge_config_vars(
+    config: Optional[AppConfig],
+    overrides: Optional[Dict[str, str]] = None,
+) -> Dict[str, str]:
+    """Names for ``{placeholders}`` in searches, templates, and chains.
+
+    ``defaults.project`` fills ``{project}``. ``defaults.vars`` fills the rest
+    and overrides ``{project}`` when it sets that name. ``overrides`` (CLI
+    ``--var`` / ``-V``) win over both.
+    """
+    merged: Dict[str, str] = {}
+    if config is not None:
+        project = config.user.defaults.project
+        if project:
+            merged["project"] = project
+        for key, value in config.user.defaults.vars.items():
+            merged[key] = value
+    if overrides:
+        merged.update(overrides)
+    return merged
+
+
 def render_string(template_str: Optional[str], variables: Dict[str, str]) -> Optional[str]:
     """Replaces placeholders like {var_name} with values from variables dictionary."""
     if not template_str:
@@ -36,16 +58,21 @@ def _render_value(value: Any, variables: Dict[str, str]) -> Any:
 def apply_workflow_vars(
     steps: List[Dict[str, Any]],
     variables: Optional[Dict[str, str]] = None,
+    config: Optional[AppConfig] = None,
 ) -> List[Dict[str, Any]]:
     """Deep-render ``{placeholders}`` in workflow steps and merge vars into create template_vars.
 
-    CLI ``--var`` values win over keys already present in a create step's ``template_vars``.
+    Settings nicknames fill first. A create step's own ``template_vars`` replace
+    those nicknames. CLI ``--var`` values win over both.
     """
-    vars_dict = variables or {}
-    if not vars_dict:
+    cli_vars = variables or {}
+    settings = merge_config_vars(config)
+    render_vars = dict(settings)
+    render_vars.update(cli_vars)
+    if not render_vars:
         return steps
 
-    rendered = _render_value(steps, vars_dict)
+    rendered = _render_value(steps, render_vars)
     if not isinstance(rendered, list):
         return steps
 
@@ -55,10 +82,11 @@ def apply_workflow_vars(
         existing = step.get("template_vars") or {}
         if not isinstance(existing, dict):
             existing = {}
-        merged: Dict[str, str] = {
-            str(k): "" if v is None else str(v) for k, v in existing.items()
-        }
-        merged.update(vars_dict)
+        merged = dict(settings)
+        merged.update(
+            {str(k): "" if v is None else str(v) for k, v in existing.items()}
+        )
+        merged.update(cli_vars)
         step["template_vars"] = merged
     return rendered
 
@@ -76,7 +104,7 @@ def process_template(
         )
 
     template = config.user.templates[template_name]
-    vars_dict = variables or {}
+    vars_dict = merge_config_vars(config, variables)
 
     rendered_summary = render_string(template.summary, vars_dict)
     rendered_description = render_string(template.description, vars_dict)
@@ -86,12 +114,13 @@ def process_template(
     rendered_fields = _render_value(dict(template.fields), vars_dict)
 
     rendered_parent = render_string(template.parent, vars_dict)
+    rendered_project = render_string(template.project, vars_dict)
 
     return IssueTemplate(
         summary=rendered_summary,
         description=rendered_description,
         issue_type=template.issue_type,
-        project=template.project,
+        project=rendered_project,
         parent=rendered_parent,
         labels=template.labels,
         components=rendered_components,

@@ -51,13 +51,13 @@ templates:
 | `summary` | usually | Supports `{placeholders}` |
 | `description` | no | Supports `{placeholders}` |
 | `issue_type` | no | Falls back to CLI / defaults |
-| `project` | no | Falls back to CLI / defaults |
+| `project` | no | Falls back to CLI / `defaults.project`. Supports `{placeholders}` |
 | `parent` | for Sub-task | Parent issue key; supports `{placeholders}`. Required when `issue_type` is a sub-task type. CLI `--parent` overrides the template. Not used for epic links (use `jflow issue parent`). |
 | `labels` | no | Applied on create |
 | `components` | no | List of component names; string entries support `{placeholders}` |
 | `fields` | no | Map of **field display name** → value (custom or system). Names must match the [field cache](fields.md). Values support `{placeholders}` in strings. Use `@current_sprint` on the Sprint field to add the issue to the active sprint on `defaults.board` after create. |
 
-Placeholders use `{name}` syntax (letters, digits, underscore). Unresolved placeholders are left unchanged in the text.
+Placeholders use `{name}` syntax (letters, digits, underscore). They are filled from `defaults.project` and `defaults.vars`, then from `--var` / `-V` on that command. A `-V` value wins. Unresolved placeholders are left unchanged in the text.
 
 **Field names:** run `jflow cache sync`, then copy exact names from `~/.config/jflow/fields_cache.json` into `fields:`. Values are encoded from the cached schema (string, number, option, etc.). Details: [fields.md](fields.md).
 

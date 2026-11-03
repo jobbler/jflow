@@ -60,7 +60,7 @@ A file may be either a bare array of steps or an object with a `steps` key:
 
 ## Dynamic fields (`--var` and tokens)
 
-Use `{placeholders}` in any workflow string and fill them from the CLI with `--var` / `-V` (same syntax as `issue create`):
+Use `{placeholders}` in any workflow string. They are filled from `defaults.project` and `defaults.vars`, then from `--var` / `-V` (same syntax as `issue create`). A `-V` value wins. A create step's own `template_vars` beat the saved names and lose to `-V`:
 
 ```bash
 jflow issue chain examples/workflows/create_and_start.json \

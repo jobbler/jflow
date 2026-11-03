@@ -24,9 +24,9 @@ DEFAULT_USER_YAML = """jira:
   # oauth_cloud_id: null                 # optional override after first login
 defaults:
   project: "PROJ"
-  # Names for {placeholders} in queries and aliases. --var / -V wins.
-  # {project} uses defaults.project unless jql_vars sets project too.
-  # jql_vars:
+  # Names for {placeholders} in searches, templates, and chains. --var / -V wins.
+  # {project} uses defaults.project unless vars sets project too.
+  # vars:
   #   user: me
   #   component: "My Team Component"
   issue_type: "Task"

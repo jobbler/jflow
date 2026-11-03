@@ -74,7 +74,7 @@ def test_search_issues_jql_vars_from_config():
     client.post.return_value = {"issues": []}
     config = _config_with_alias(
         project="PROJ",
-        jql_vars={"user": "me", "component": "My Team Component"},
+        vars={"user": "me", "component": "My Team Component"},
     )
     search_issues(client, jql="mine", config=config)
     assert _searched_jql(client) == (
@@ -87,7 +87,7 @@ def test_search_issues_cli_var_overrides_jql_vars():
     client.post.return_value = {"issues": []}
     config = _config_with_alias(
         project="PROJ",
-        jql_vars={"user": "me", "component": "My Team Component", "project": "FROM-MAP"},
+        vars={"user": "me", "component": "My Team Component", "project": "FROM-MAP"},
     )
     search_issues(
         client,
@@ -117,7 +117,7 @@ def test_list_jql_uses_config_vars():
 
     client = MagicMock()
     client.post.return_value = {"issues": []}
-    config = _config_with_alias(project="PROJ", jql_vars={"user": "me"})
+    config = _config_with_alias(project="PROJ", vars={"user": "me"})
     list_my_issues(client, jql="assignee = {user} AND project = {project}", config=config)
     assert _searched_jql(client) == "assignee = me AND project = PROJ"
 

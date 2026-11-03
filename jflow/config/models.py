@@ -53,9 +53,10 @@ class Defaults(BaseModel):
     issue_type: str = "Task"
     output_format: str = "markdown"
     board: Optional[str] = None
-    # Names filled into {placeholders} in JQL and aliases. CLI --var / -V wins.
-    # {project} also comes from defaults.project when this map does not set it.
-    jql_vars: Dict[str, str] = Field(default_factory=dict)
+    # Names filled into {placeholders} in searches, templates, and chains.
+    # CLI --var / -V wins. {project} also comes from defaults.project when this
+    # map does not set it.
+    vars: Dict[str, str] = Field(default_factory=dict)
     # Field names/ids for `jflow show` / `jflow issue show`. None/empty = built-in set.
     show_fields: Optional[List[str]] = None
     # Field names/ids for `jflow list` / `jflow query`. None/empty = built-in columns.

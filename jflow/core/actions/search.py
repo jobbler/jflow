@@ -200,28 +200,6 @@ def _build_list_row(
     return row
 
 
-def merge_jql_vars(
-    config: Optional[AppConfig],
-    template_vars: Optional[Dict[str, str]] = None,
-) -> Dict[str, str]:
-    """Names for ``{placeholders}`` in JQL.
-
-    ``defaults.project`` fills ``{project}``. ``defaults.jql_vars`` fills the
-    rest and overrides ``{project}`` when it sets that name. ``--var`` / ``-V``
-    values win over both.
-    """
-    merged: Dict[str, str] = {}
-    if config is not None:
-        project = config.user.defaults.project
-        if project:
-            merged["project"] = project
-        for key, value in config.user.defaults.jql_vars.items():
-            merged[key] = value
-    if template_vars:
-        merged.update(template_vars)
-    return merged
-
-
 def search_issues(
     client: JiraClient,
     jql: str,
@@ -240,10 +218,10 @@ def search_issues(
     ``defaults.list_fields`` is used if set; otherwise the built-in
     Key/Type/Summary/Status/Assignee columns.
     """
-    from jflow.core.templates import render_string
+    from jflow.core.templates import merge_config_vars, render_string
 
     resolved_jql = config.resolve_jql(jql) if config else jql
-    jql_vars = merge_jql_vars(config, template_vars)
+    jql_vars = merge_config_vars(config, template_vars)
     if jql_vars:
         resolved_jql = render_string(resolved_jql, jql_vars) or resolved_jql
 
