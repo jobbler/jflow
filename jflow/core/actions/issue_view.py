@@ -5,13 +5,19 @@
 # ==============================================================================
 # Created in whole or in part by AI using Cursor (Grok).
 # Updated in whole or in part by AI using Cursor (Composer).
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 from jflow.core.adf import adf_to_text
 from jflow.core.actions.field_selection import (
     API_TO_DETAIL as _API_TO_DETAIL,
+    CURRENT_SPRINT,
+    CURRENT_SPRINT_LABEL,
     INPUT_TO_API as _INPUT_TO_API,
+    SPRINT_FIELD_NAME,
+    active_board_sprints,
+    current_sprint_name,
     flatten_system_value as _flatten_system_value,
+    virtual_field,
 )
 from jflow.core.actions.fields import decode_field_value
 from jflow.core.client import JiraClient
@@ -89,20 +95,55 @@ def needs_field_cache(names: Optional[List[str]]) -> bool:
     )
 
 
+class ShowField(NamedTuple):
+    api_id: str
+    detail_key: str
+    schema: Optional[Dict[str, Any]] = None
+    virtual: Optional[str] = None
+
+
 def _resolve_requested_fields(
     names: List[str],
     fields_mgr: Optional[FieldCacheManager],
-) -> List[Tuple[str, str, Optional[Dict[str, Any]]]]:
-    """Resolve requested names to (api_id, detail_key, schema_or_none).
+) -> List[ShowField]:
+    """Resolve requested names to show fields.
 
     Raises ValueError for unknown names when a fields manager is required.
     """
-    resolved: List[Tuple[str, str, Optional[Dict[str, Any]]]] = []
-    seen_api: set = set()
+    resolved: List[ShowField] = []
+    seen: set = set()
     for original in names:
         needle = (original or "").strip()
         if not needle:
             continue
+
+        virtual = virtual_field(needle)
+        if virtual is not None:
+            if fields_mgr is None:
+                raise ValueError(
+                    f"Field '{original}' requires the field cache. "
+                    "Run 'jflow cache sync'."
+                )
+            sprint_meta = fields_mgr.resolve_field(SPRINT_FIELD_NAME)
+            if not sprint_meta:
+                raise ValueError(
+                    f"Field '{original}' needs a '{SPRINT_FIELD_NAME}' field in "
+                    "the cache. Run 'jflow cache sync'."
+                )
+            identity = ("virtual", virtual)
+            if identity in seen:
+                continue
+            seen.add(identity)
+            resolved.append(
+                ShowField(
+                    sprint_meta["id"],
+                    CURRENT_SPRINT_LABEL,
+                    sprint_meta.get("schema"),
+                    virtual,
+                )
+            )
+            continue
+
         api_id = _INPUT_TO_API.get(needle.casefold())
         meta: Optional[Dict[str, Any]] = None
         if api_id is None:
@@ -123,9 +164,9 @@ def _resolve_requested_fields(
             if fields_mgr is not None:
                 meta = fields_mgr.resolve_field(api_id)
 
-        if api_id in seen_api:
+        if api_id in seen:
             continue
-        seen_api.add(api_id)
+        seen.add(api_id)
 
         if api_id in _API_TO_DETAIL:
             detail_key = _API_TO_DETAIL[api_id]
@@ -134,7 +175,7 @@ def _resolve_requested_fields(
         else:
             detail_key = original
         schema = (meta or {}).get("schema") if meta else None
-        resolved.append((api_id, detail_key, schema))
+        resolved.append(ShowField(api_id, detail_key, schema))
     return resolved
 
 
@@ -169,6 +210,7 @@ def get_issue(
     only: Optional[List[str]] = None,
     show_fields: Optional[List[str]] = None,
     fields_mgr: Optional[FieldCacheManager] = None,
+    board: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Fetch issue details, optionally with comments.
 
@@ -178,6 +220,7 @@ def get_issue(
     3. Built-in ``ISSUE_SHOW_FIELDS``
 
     ``key`` is always included. Comments are controlled separately via ``comments``.
+    The ``current_sprint`` virtual field uses the active sprint on ``board``.
     """
     mode, count = parse_comments_arg(comments)
     path = f"/rest/api/3/issue/{issue_key}"
@@ -194,21 +237,31 @@ def get_issue(
         resolved = _resolve_requested_fields(list(requested), fields_mgr)
         if not resolved:
             raise ValueError("No fields requested for show.")
-        api_ids = [api_id for api_id, _, _ in resolved]
+        api_ids = list(dict.fromkeys(field.api_id for field in resolved))
         res = client.get(path, params={"fields": ",".join(api_ids)}) or {}
         f = res.get("fields") or {}
         details = {"key": res.get("key") or issue_key}
+        active_sprints: Dict[int, str] = {}
+        if any(field.virtual for field in resolved):
+            if not board:
+                raise ValueError(
+                    "current_sprint requires defaults.board (a board with an "
+                    "active sprint)."
+                )
+            active_sprints = active_board_sprints(client, board)
         field_order: List[str] = []
-        for api_id, detail_key, schema in resolved:
-            raw = f.get(api_id)
-            if api_id in _API_TO_DETAIL:
-                details[detail_key] = _flatten_system_value(api_id, raw)
+        for field in resolved:
+            raw = f.get(field.api_id)
+            if field.virtual == CURRENT_SPRINT:
+                details[field.detail_key] = current_sprint_name(raw, active_sprints)
+            elif field.api_id in _API_TO_DETAIL:
+                details[field.detail_key] = _flatten_system_value(field.api_id, raw)
             else:
-                details[detail_key] = decode_field_value(schema, raw)
+                details[field.detail_key] = decode_field_value(field.schema, raw)
             # Force meta lines for explicitly requested non-structural fields,
             # including when empty (so show_fields like Story Points always appear).
-            if detail_key not in ("key", "summary", "description", "comments"):
-                field_order.append(detail_key)
+            if field.detail_key not in ("key", "summary", "description", "comments"):
+                field_order.append(field.detail_key)
         details[FIELD_ORDER_KEY] = field_order
 
     result: Dict[str, Any] = dict(details)

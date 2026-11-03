@@ -646,6 +646,7 @@ def issue_show(
         only=only,
         show_fields=show_fields,
         fields_mgr=fields_mgr,
+        board=config.user.defaults.board,
     )
     _emit(ctx, config, res)
 

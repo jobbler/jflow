@@ -204,6 +204,7 @@ jflow query project-open --var project=PROJ
 # List my open issues / show one
 jflow list --filter open
 jflow list --fields key --fields summary --fields status --fields "Story Points"
+jflow list --fields key --fields current_sprint   # active sprint on defaults.board
 jflow show PROJ-123
 jflow show PROJ-123 --comments last
 

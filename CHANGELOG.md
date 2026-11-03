@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `user.yaml` (e.g. `api_token: "${JIRA_API_TOKEN}"`), expanded after parsing so values
   cannot alter the YAML structure; `$$` escapes a literal `$`; unset variables raise a
   clear error naming the offending config key
+- `current_sprint` virtual field for `list_fields` / `--fields` and `show_fields` /
+  `--only`: shows the active sprint on `defaults.board` when the issue's Sprint field
+  includes it, otherwise `Backlog`
 
 ### Changed
 
