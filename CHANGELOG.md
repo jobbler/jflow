@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-02
+
 ### Added
 
 - `defaults.list_fields` in `user.yaml` and repeatable `--fields` on `jflow list`
@@ -21,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `user.yaml` (e.g. `api_token: "${JIRA_API_TOKEN}"`), expanded after parsing so values
   cannot alter the YAML structure; `$$` escapes a literal `$`; unset variables raise a
   clear error naming the offending config key
+
+### Changed
+
+- Human-readable timestamps now show local time plus a relative hint (for example
+  `2026-11-02 14:32 EST (2 days ago)`); seconds and milliseconds are omitted. This
+  covers `show` metadata, comments, and `created`/`updated` columns in list output.
+  Machine formats (`json`, `yaml`, `unix`) keep the raw ISO value.
 
 ## [0.2.7] - 2026-10-08
 
@@ -154,7 +163,8 @@ Early development snapshot (not published under the `jflow` name).
 - Example configs and workflow JSON under `examples/`
 - Project documentation under `docs/` (MCP, templates, workflows, text fields, staging tests)
 
-[Unreleased]: https://github.com/jobbler/jflow/compare/v0.2.7...HEAD
+[Unreleased]: https://github.com/jobbler/jflow/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/jobbler/jflow/releases/tag/v0.3.0
 [0.2.7]: https://github.com/jobbler/jflow/releases/tag/v0.2.7
 [0.2.6]: https://github.com/jobbler/jflow/releases/tag/v0.2.6
 [0.2.5]: https://github.com/jobbler/jflow/releases/tag/v0.2.5

@@ -39,11 +39,11 @@ Human formats separate title, metadata, description, and comments. Metadata prin
 
 List output (`jflow list`, `jflow query`) uses `defaults.list_fields` or `--fields` to choose its columns; see [fields.md](fields.md#fields-shown-by-jflow-list-and-jflow-query).
 
-Timestamps in human formats show **local time and ISO together**, for example:
+Timestamps in human formats show **local time and a relative hint**, for example:
 
-`2026-09-20 09:32 CDT (2026-09-20T14:32:11.000+0000)`
+`2026-09-20 09:32 CDT (2 days ago)`
 
-Machine formats (`json`, `yaml`, `unix`) keep the original ISO string only.
+Seconds and milliseconds are omitted. This applies to issue metadata, comments, and `created`/`updated` columns in list output. Machine formats (`json`, `yaml`, `unix`) keep the original ISO string only.
 
 Description and comment bodies are plain text (from ADF), not rich markdown.
 

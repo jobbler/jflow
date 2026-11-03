@@ -187,14 +187,21 @@ client = _client()
 rows = search_issues(
     client,
     jql="project = PROJ",
-    list_fields=["key", "Summary", "Story Points"],
+    list_fields=["key", "Summary", "Story Points", "Updated"],
     fields_mgr=_fields_mgr(),
 )
 markdown = format_output(rows, format_type="markdown")
 assert "**PROJ-7**" in markdown
 assert "Story Points: 5" in markdown
+assert "2026-10-01T12:00:00.000+0000" not in markdown
+assert "Updated:" in markdown and "ago" in markdown
 text = format_output(rows, format_type="text")
 assert "Story Points" in text
+assert "2026-10-01T12:00:00.000+0000" not in text
+assert "Updated" in text and "ago" in text
+# Machine formats keep the raw ISO value.
+unix = format_output(rows, format_type="unix")
+assert "2026-10-01T12:00:00.000+0000" in unix
 
 
 # --- CLI wiring: --fields overrides defaults.list_fields ---
