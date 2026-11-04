@@ -51,6 +51,11 @@ defaults:
   #   - status
   #   - updated
   #   - Story Points
+  # Optional: sort terms for issue lists (--sort style, "-" prefix = descending).
+  # sort_issues: ["-updated"]
+  # Optional: client-side sort for sprint/board lists.
+  # sort_sprints: ["start_date"]
+  # sort_boards: ["name"]
 projects:
   PROJ:
     default_issue_type: "Task"
