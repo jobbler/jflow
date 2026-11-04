@@ -44,6 +44,7 @@ phase_tests = [
     "test_client_empty_body.py",
     "test_workflow_vars.py",
     "test_issue_convert.py",
+    "test_update.py",
 ]
 
 failed = False

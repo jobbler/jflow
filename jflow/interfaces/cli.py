@@ -30,7 +30,7 @@ from jflow.core.actions import (
 )
 from jflow.core.actions.issue_view import needs_field_cache
 from jflow.core.actions.search import MY_ISSUE_FILTERS
-from jflow.core.actions.system import build_status
+from jflow.core.actions.system import build_status, run_update
 from jflow.core.actions.sprint import (
     add_issue_to_sprint,
     create_sprint,
@@ -696,6 +696,12 @@ def cli_version():
     """Print jflow package version."""
     typer.echo(__version__)
 
+
+
+@app.command("update")
+def cli_update():
+    """Upgrade jflow (pipx when available)."""
+    raise typer.Exit(code=run_update())
 
 @app.command("status")
 def cli_status(ctx: typer.Context):
