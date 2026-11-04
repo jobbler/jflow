@@ -20,6 +20,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   config path like `jira.email`. Unknown `{placeholders}` in JQL raise a clear
   error.
 
+### Changed
+
+- Issue queries no longer hardcode `ORDER BY updated DESC` into presets; the
+  built-in default remains `updated DESC` and is now applied to any JQL
+  (preset, raw JQL, or alias) that has no `ORDER BY` of its own. JQL carrying
+  its own `ORDER BY` is sent unchanged unless `--sort` is given.
+
+### Added
+
+- Configurable sorting: `defaults.sort_issues`, `defaults.sort_sprints`, and
+  `defaults.sort_boards` in `user.yaml`, plus a repeatable, comma-splittable
+  `--sort` option (leading `-` = descending) on `jflow list`, `jflow query` /
+  `issue search`, `jflow sprint list`, and `jflow boards list`. Issue lists sort
+  server-side via JQL `ORDER BY` (custom field names resolved via the field
+  cache); sprint/board lists sort client-side after fetch (board lists with
+  `--limit` sort the full collected set before truncating).
+
 ## [0.3.0] - 2026-11-02
 
 ### Added

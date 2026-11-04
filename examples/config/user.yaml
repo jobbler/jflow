@@ -42,6 +42,11 @@ defaults:
   #   - description
   #   - Story Points
   #   - Git Pull Request
+  # Optional: sort terms for issue lists ("-" prefix = descending).
+  # sort_issues: ["-updated"]
+  # Optional: client-side sort for sprint/board lists.
+  # sort_sprints: ["start_date"]
+  # sort_boards: ["name"]
 
 projects:
   PROJ:
