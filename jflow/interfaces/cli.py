@@ -638,12 +638,20 @@ def issue_show(
     only: Optional[List[str]] = typer.Option(
         None, "--only", "-o", help="Show only these detail fields (repeatable)"
     ),
+    show_empty: bool = typer.Option(
+        False, "--show-empty", help="Render requested fields even when empty"
+    ),
 ):
     """Show issue details, optionally with comments."""
     config = _load_cfg(ctx)
     client = JiraClient.from_settings(config.user)
     show_fields = config.user.defaults.show_fields
-    effective = only if only else show_fields
+    show_fields_by_type = config.user.defaults.show_fields_by_type
+    per_type = None
+    if not only and show_fields_by_type:
+        # Any non-empty per-type list may apply; assume cache needed if so.
+        per_type = next((v for v in show_fields_by_type.values() if v), None)
+    effective = only if only else (per_type if per_type else show_fields)
     fields_mgr = FieldCacheManager(client) if needs_field_cache(effective) else None
     res = get_issue(
         client,
@@ -651,6 +659,8 @@ def issue_show(
         comments=comments,
         only=only,
         show_fields=show_fields,
+        show_fields_by_type=show_fields_by_type,
+        show_empty=show_empty,
         fields_mgr=fields_mgr,
         board=config.user.defaults.board,
     )

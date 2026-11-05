@@ -37,6 +37,7 @@ phase_tests = [
     "test_formatter_flatten.py",
     "test_issue_show_list.py",
     "test_list_fields.py",
+    "test_show_by_type.py",
     "test_sort.py",
     "test_cli_ux.py",
     "test_oauth.py",
