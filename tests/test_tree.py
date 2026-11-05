@@ -282,4 +282,66 @@ assert parsed["key"] == "PROJ-1"
 assert [c["key"] for c in parsed["children"]] == ["PROJ-2", "PROJ-3"]
 assert "_tree" not in parsed
 
+# --- 23. blocked annotation: native flag on the epic blocks the subtree ---
+def _issue_b(key, summary, itype="Task", status="To Do", parent=None, native=False):
+    f = {"summary": summary, "issuetype": {"name": itype}, "status": {"name": status}}
+    if parent:
+        f["parent"] = {"key": parent}
+    if native:
+        f["customfield_10021"] = True
+    return {"key": key, "fields": f}
+
+
+issues_b = {
+    "EPIC-9": _issue_b("EPIC-9", "Blocked epic", itype="Epic", status="In Progress", native=True),
+    "STORY-1": _issue_b("STORY-1", "Story under epic", status="In Progress", parent="EPIC-9"),
+    "STORY-2": _issue_b("STORY-2", "Done story", status="Done", parent="EPIC-9"),
+}
+routes_b = {
+    'parent = "EPIC-9"': _search_result(issues_b["STORY-1"], issues_b["STORY-2"]),
+    'parent = "STORY-1"': _search_result(),
+    'parent = "STORY-2"': _search_result(),
+}
+client_b = MagicMock(spec=JiraClient)
+client_b.get.side_effect = lambda path, params=None: issues_b[path.rsplit("/", 1)[-1]]
+def _post_b(path, payload):
+    jql = payload.get("jql", "")
+    if "key IN" in jql:
+        # blocked-payload refetch: echo full payloads for requested keys
+        wanted = [k.strip('" ') for k in jql[jql.index("(") + 1:jql.rindex(")")].split(",")]
+        return _search_result(*[issues_b[k] for k in wanted if k in issues_b])
+    for needle, result in routes_b.items():
+        if needle in jql:
+            return result
+    return _search_result()
+
+
+client_b.post.side_effect = _post_b
+with patch("jflow.core.actions.tree.FieldCacheManager") as mgr_cls:
+    mgr = MagicMock(spec=FieldCacheManager)
+    mgr.resolve_field.side_effect = lambda name: (
+        {"id": "customfield_10021", "name": name}
+        if name in ("Blocked", "Flagged") else None
+    )
+    mgr_cls.return_value = mgr
+    tree = build_tree(client_b, "EPIC-9")
+
+assert tree["blocked"] == "yes", tree
+assert tree["status"] == "In Progress (blocked)", tree["status"]
+story1, story2 = tree["children"]
+assert story1["blocked"] == "yes" and story1["status"] == "In Progress (blocked)"
+assert story2["blocked"] == "no" and story2["status"] == "Done", story2
+
+# text render: suffix only, no `| blocked:` extra
+text_b = format_output(tree, "text")
+assert "EPIC-9 Blocked epic [In Progress (blocked)]" in text_b, text_b
+assert "blocked:" not in text_b, text_b
+
+# json: blocked key present, no _-prefixed leaks
+parsed_b = json.loads(format_output(tree, "json"))
+assert parsed_b["blocked"] == "yes"
+assert parsed_b["children"][0]["blocked"] == "yes"
+assert parsed_b["children"][1]["blocked"] == "no"
+assert "_tree" not in parsed_b
+
 print("✅ Tree tests passed successfully!")

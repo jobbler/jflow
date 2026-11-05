@@ -47,6 +47,7 @@ phase_tests = [
     "test_issue_convert.py",
     "test_update.py",
     "test_tree.py",
+    "test_blocked.py",
 ]
 
 failed = False

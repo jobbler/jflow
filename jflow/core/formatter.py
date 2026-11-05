@@ -450,7 +450,7 @@ def _tree_label(node: Dict[str, Any]) -> str:
     extras = [
         (k, v)
         for k, v in node.items()
-        if k not in ("key", "type", "summary", "status", "children")
+        if k not in ("key", "type", "summary", "status", "children", "blocked")
         and not k.startswith("_")
         and not _is_empty(v)
     ]
