@@ -10,6 +10,8 @@ from typing import Any, Callable, Dict, List, NamedTuple, Optional
 from jflow.config.models import AppConfig
 from jflow.core.actions.field_selection import (
     API_TO_DETAIL,
+    BLOCKED,
+    BLOCKED_LABEL,
     CURRENT_SPRINT,
     CURRENT_SPRINT_LABEL,
     INPUT_TO_API,
@@ -19,6 +21,7 @@ from jflow.core.actions.field_selection import (
     flatten_system_value,
     virtual_field,
 )
+from jflow.core.actions.blocked import compute_blocked, resolve_native_blocked_id
 from jflow.core.actions.fields import decode_field_value
 from jflow.core.client import JiraClient
 from jflow.core.fields import FieldCacheManager
@@ -117,6 +120,19 @@ def parse_sort_terms(options: Optional[List[str]]) -> Optional[List[str]]:
     return terms or None
 
 
+def parse_list_field_terms(options: Optional[List[str]]) -> Optional[List[str]]:
+    """Flatten repeatable/comma-split field options; None if absent/empty."""
+    if options is None:
+        return None
+    names: List[str] = []
+    for option in options:
+        for name in (option or "").split(","):
+            name = name.strip()
+            if name:
+                names.append(name)
+    return names or None
+
+
 def _find_order_by(jql: str) -> int:
     """Index of the unquoted 'ORDER BY' keyword in jql, or -1 when absent."""
     in_string = False
@@ -197,6 +213,8 @@ def _list_field_label(
 ) -> str:
     if api_id == "issuetype":
         return "Type"
+    if api_id == BLOCKED:
+        return BLOCKED_LABEL
     detail_key = API_TO_DETAIL.get(api_id)
     if detail_key:
         return detail_key.replace("_", " ").capitalize()
@@ -224,6 +242,14 @@ def _resolve_list_fields(
             continue
 
         virtual = virtual_field(needle)
+        if virtual == BLOCKED:
+            if BLOCKED in seen:
+                continue
+            if fields_mgr is None:
+                fields_mgr = FieldCacheManager(client)
+            seen.add(BLOCKED)
+            resolved.append(ListColumn(BLOCKED, BLOCKED_LABEL, None, BLOCKED))
+            continue
         if virtual is not None:
             if virtual in seen:
                 continue
@@ -278,7 +304,9 @@ def _build_list_row(
     f = item.get("fields") or {}
     row: Dict[str, Any] = {}
     for column in resolved:
-        if column.virtual == CURRENT_SPRINT:
+        if column.virtual == BLOCKED:
+            row[column.label] = "yes" if item.get("_blocked") else "no"
+        elif column.virtual == CURRENT_SPRINT:
             row[column.label] = current_sprint_name(
                 f.get(column.api_id), active_sprints or {}
             )
@@ -292,6 +320,12 @@ def _build_list_row(
             row[column.label] = decode_field_value(
                 column.schema, f.get(column.api_id)
             )
+    if item.get("_blocked"):
+        status_label = next(
+            (c.label for c in resolved if c.api_id == "status"), None
+        )
+        if status_label and isinstance(row.get(status_label), str):
+            row[status_label] = f"{row[status_label]} (blocked)"
     return row
 
 
@@ -344,10 +378,11 @@ def search_issues(
     if effective_fields is None and config is not None:
         effective_fields = config.user.defaults.list_fields
     board = config.user.defaults.board if config is not None else None
+    effective_fields = parse_list_field_terms(effective_fields)
     configured = [name for name in (effective_fields or []) if (name or "").strip()]
     requested: List[str] = []
     for name in configured:
-        if virtual_field(name) and not board:
+        if virtual_field(name) == CURRENT_SPRINT and not board:
             _warn_list_field(
                 on_warning,
                 f"Skipping '{name}': set defaults.board to use it.",
@@ -362,6 +397,7 @@ def search_issues(
 
     resolved_columns: Optional[List[ListColumn]] = None
     active_sprints: Dict[int, str] = {}
+    want_blocked = False
     if requested:
         if _list_fields_need_cache(requested) and fields_mgr is None:
             fields_mgr = FieldCacheManager(client)
@@ -377,10 +413,21 @@ def search_issues(
             dict.fromkeys(
                 column.api_id
                 for column in resolved_columns
-                if column.api_id != "key"
+                if column.api_id != "key" and column.virtual != BLOCKED
             )
         )
-        if any(column.virtual for column in resolved_columns):
+        want_blocked = any(column.virtual == BLOCKED for column in resolved_columns)
+        if want_blocked:
+            if fields_mgr is None:
+                fields_mgr = FieldCacheManager(client)
+            native_id = resolve_native_blocked_id(fields_mgr)
+            target_fields += [
+                f for f in ("parent", "issuelinks", "resolution", "status")
+                if f not in target_fields
+            ]
+            if native_id and native_id not in target_fields:
+                target_fields.append(native_id)
+        if any(column.virtual == CURRENT_SPRINT for column in resolved_columns):
             active_sprints = active_board_sprints(client, board)
     else:
         target_fields = fields or list(_DEFAULT_LIST_TARGET_FIELDS)
@@ -396,6 +443,10 @@ def search_issues(
     issues = response.get("issues", []) if response else []
 
     if resolved_columns is not None:
+        if want_blocked and issues:
+            blocked_map = compute_blocked(client, issues, fields_mgr)
+            for item in issues:
+                item["_blocked"] = blocked_map.get(item.get("key"), False)
         return [
             _build_list_row(item, resolved_columns, active_sprints)
             for item in issues

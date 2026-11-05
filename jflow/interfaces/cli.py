@@ -645,7 +645,11 @@ def issue_show(
     client = JiraClient.from_settings(config.user)
     show_fields = config.user.defaults.show_fields
     effective = only if only else show_fields
-    fields_mgr = FieldCacheManager(client) if needs_field_cache(effective) else None
+    fields_mgr = (
+        FieldCacheManager(client)
+        if (needs_field_cache(effective) or effective is None)
+        else None
+    )
     res = get_issue(
         client,
         issue_key=issue_key,
@@ -655,6 +659,7 @@ def issue_show(
         fields_mgr=fields_mgr,
         board=config.user.defaults.board,
     )
+    _emit(ctx, config, res)
 
 
 @issue_app.command("tree")

@@ -7,6 +7,11 @@
 """Issue hierarchy tree: `jflow tree KEY` rooted at the topmost ancestor."""
 from typing import Any, Dict, List, Optional, Tuple
 
+from jflow.core.actions.blocked import (
+    compute_blocked,
+    fetch_blocked_payload,
+    resolve_native_blocked_id,
+)
 from jflow.core.actions.field_selection import INPUT_TO_API
 from jflow.core.actions.fields import decode_field_value
 from jflow.core.actions.issue_view import needs_field_cache
@@ -71,9 +76,12 @@ def _resolve_extra_fields(
 def _node_from_raw(
     item: Dict[str, Any],
     extras: List[Tuple[str, str, Optional[Dict[str, Any]]]],
+    raw_out: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """Build a tree node dict from a raw Jira issue payload."""
     f = item.get("fields") or {}
+    if raw_out is not None and item.get("key"):
+        raw_out.append(item)
     node: Dict[str, Any] = {
         "key": item.get("key"),
         "type": (f.get("issuetype") or {}).get("name"),
@@ -91,9 +99,10 @@ def _fetch_node(
     key: str,
     api_fields: List[str],
     extras: List[Tuple[str, str, Optional[Dict[str, Any]]]],
+    raw_out: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     res = client.get(f"/rest/api/3/issue/{key}", params={"fields": ",".join(api_fields)})
-    node = _node_from_raw(res, extras)
+    node = _node_from_raw(res, extras, raw_out)
     node["_parent_key"] = ((res.get("fields") or {}).get("parent") or {}).get("key")
     return node
 
@@ -115,6 +124,7 @@ def _children(
     api_fields: List[str],
     extras: List[Tuple[str, str, Optional[Dict[str, Any]]]],
     path: set,
+    raw_out: Optional[List[Dict[str, Any]]] = None,
 ) -> List[Dict[str, Any]]:
     """Direct children of a node (depth-first recursion happens in build_tree)."""
     key = node["key"]
@@ -123,7 +133,7 @@ def _children(
         epic_link_id = _epic_link_field_id(client)
         if epic_link_id:
             raw = _search_all(client, f'cf[{epic_link_id}] = "{key}"', api_fields)
-    children = [_node_from_raw(item, extras) for item in raw]
+    children = [_node_from_raw(item, extras, raw_out) for item in raw]
     children.sort(key=lambda c: c["key"] or "")
     return [c for c in children if c["key"] not in path]
 
@@ -137,7 +147,9 @@ def build_tree(
     """Return the issue's hierarchy rooted at its topmost ancestor.
 
     The returned root dict carries an internal ``_tree`` marker (stripped from
-    json/yaml output) so the formatter can render tree connectors.
+    json/yaml output) so the formatter can render tree connectors. Every node
+    also gains a computed read-only ``blocked`` yes/no and a `` (blocked)``
+    status suffix when blocked (issue #23).
     """
     extras: List[Tuple[str, str, Optional[Dict[str, Any]]]] = []
     if fields:
@@ -146,7 +158,8 @@ def build_tree(
         extras = _resolve_extra_fields(fields, fields_mgr)
     api_fields = list(dict.fromkeys(_BASE_FIELDS + [api_id for api_id, _, _ in extras]))
 
-    node = _fetch_node(client, key, api_fields, extras)
+    raw_issues: List[Dict[str, Any]] = []
+    node = _fetch_node(client, key, api_fields, extras, raw_issues)
     visited = {key}
 
     # Parent ascent: follow fields.parent upward until no parent or a cycle.
@@ -154,7 +167,7 @@ def build_tree(
         parent_key = node.pop("_parent_key", None)
         if not parent_key:
             break
-        parent = _fetch_node(client, parent_key, api_fields, extras)
+        parent = _fetch_node(client, parent_key, api_fields, extras, raw_issues)
         next_key = parent.pop("_parent_key", None)
         if next_key and (next_key == key or next_key in visited):
             # Cycle detected: stop the ascent at the current node.
@@ -164,19 +177,47 @@ def build_tree(
 
     root = node
 
-
     # Depth-first descent.
     def descend(node: Dict[str, Any], path: set) -> Dict[str, Any]:
         path = path | {node["key"]}
         node["children"] = [
             descend(child, path)
-            for child in _children(client, node, api_fields, extras, path)
+            for child in _children(client, node, api_fields, extras, path, raw_issues)
         ]
         return node
 
     root = descend(root, set())
+    _annotate_blocked(client, root, raw_issues, fields_mgr)
     root["_tree"] = True
     return root
+
+
+def _annotate_blocked(
+    client: JiraClient,
+    root: Dict[str, Any],
+    raw_issues: List[Dict[str, Any]],
+    fields_mgr: Optional[FieldCacheManager],
+) -> None:
+    """Set node['blocked'] and suffix blocked nodes' status (issue #23)."""
+    if not raw_issues:
+        return
+    if fields_mgr is None:
+        fields_mgr = FieldCacheManager(client)
+    # The tree walk fetches name-only status without issuelinks/resolution,
+    # so link-based blocking needs full payloads: refetch the node keys.
+    keys = [raw.get("key") for raw in raw_issues if raw.get("key")]
+    full = fetch_blocked_payload(client, keys, resolve_native_blocked_id(fields_mgr))
+    blocked_map = compute_blocked(client, list(full.values()), fields_mgr)
+
+    def visit(node: Dict[str, Any]) -> None:
+        blocked = blocked_map.get(node.get("key"), False)
+        node["blocked"] = "yes" if blocked else "no"
+        if blocked and node.get("status"):
+            node["status"] = f"{node['status']} (blocked)"
+        for child in node.get("children") or []:
+            visit(child)
+
+    visit(root)
 
 
 def fetch_family_status(

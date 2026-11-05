@@ -10,6 +10,7 @@ from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 from jflow.core.adf import adf_to_text
 from jflow.core.actions.field_selection import (
     API_TO_DETAIL as _API_TO_DETAIL,
+    BLOCKED,
     CURRENT_SPRINT,
     CURRENT_SPRINT_LABEL,
     INPUT_TO_API as _INPUT_TO_API,
@@ -19,6 +20,13 @@ from jflow.core.actions.field_selection import (
     flatten_system_value as _flatten_system_value,
     virtual_field,
 )
+from jflow.core.actions.blocked import (
+    compute_blocked_one,
+    compute_blocked_reasons_one,
+    format_blocked_reasons,
+    resolve_native_blocked_id,
+)
+from jflow.core.actions.search import parse_list_field_terms
 from jflow.core.actions.fields import decode_field_value
 from jflow.core.client import JiraClient
 from jflow.core.fields import FieldCacheManager
@@ -37,6 +45,7 @@ ISSUE_SHOW_FIELDS = [
     "created",
     "updated",
     "description",
+    "blocked",
 ]
 
 
@@ -118,6 +127,18 @@ def _resolve_requested_fields(
             continue
 
         virtual = virtual_field(needle)
+        if virtual == BLOCKED:
+            if fields_mgr is None:
+                raise ValueError(
+                    f"Field '{original}' requires the field cache. "
+                    "Run 'jflow cache sync'."
+                )
+            identity = ("virtual", BLOCKED)
+            if identity in seen:
+                continue
+            seen.add(identity)
+            resolved.append(ShowField(BLOCKED, BLOCKED, None, BLOCKED))
+            continue
         if virtual is not None:
             if fields_mgr is None:
                 raise ValueError(
@@ -203,6 +224,14 @@ def _build_default_details(res: Dict[str, Any], issue_key: str) -> Dict[str, Any
     }
 
 
+def _blocked_detail(found: List[str]) -> str:
+    """Show value for the blocked field: plain 'no' or 'yes (...)' with reasons."""
+    if not found:
+        return "no"
+    summary = format_blocked_reasons(found)
+    return f"yes ({summary})" if summary else "yes"
+
+
 def get_issue(
     client: JiraClient,
     issue_key: str,
@@ -225,24 +254,51 @@ def get_issue(
     mode, count = parse_comments_arg(comments)
     path = f"/rest/api/3/issue/{issue_key}"
 
-    requested = only if only else (show_fields if show_fields else None)
+    requested = parse_list_field_terms(only if only else show_fields)
     use_builtin = not requested
 
     if use_builtin:
-        res = client.get(path, params={"fields": ",".join(ISSUE_SHOW_FIELDS)}) or {}
+        native_id = resolve_native_blocked_id(fields_mgr)
+        real_fields = [name for name in ISSUE_SHOW_FIELDS if name != BLOCKED]
+        fetch_fields = real_fields + [
+            f for f in ("parent", "issuelinks", "resolution")
+            if f not in real_fields
+        ]
+        if native_id:
+            fetch_fields.append(native_id)
+        res = client.get(path, params={"fields": ",".join(fetch_fields)}) or {}
         details = _build_default_details(res, issue_key)
+        found = compute_blocked_reasons_one(client, res, fields_mgr)
+        details["blocked"] = _blocked_detail(found)
+        if found and details.get("status"):
+            details["status"] = f"{details['status']} (blocked)"
     else:
         if needs_field_cache(list(requested)) and fields_mgr is None:
             fields_mgr = FieldCacheManager(client)
         resolved = _resolve_requested_fields(list(requested), fields_mgr)
         if not resolved:
             raise ValueError("No fields requested for show.")
-        api_ids = list(dict.fromkeys(field.api_id for field in resolved))
+        want_blocked = any(field.virtual == BLOCKED for field in resolved)
+        if want_blocked and fields_mgr is None:
+            fields_mgr = FieldCacheManager(client)
+        native_id = resolve_native_blocked_id(fields_mgr) if want_blocked else None
+        api_ids = list(
+            dict.fromkeys(
+                field.api_id for field in resolved if field.virtual != BLOCKED
+            )
+        )
+        if want_blocked:
+            api_ids += [
+                f for f in ("parent", "issuelinks", "resolution", "status")
+                if f not in api_ids
+            ]
+            if native_id:
+                api_ids.append(native_id)
         res = client.get(path, params={"fields": ",".join(api_ids)}) or {}
         f = res.get("fields") or {}
         details = {"key": res.get("key") or issue_key}
         active_sprints: Dict[int, str] = {}
-        if any(field.virtual for field in resolved):
+        if any(field.virtual == CURRENT_SPRINT for field in resolved):
             if not board:
                 raise ValueError(
                     "current_sprint requires defaults.board (a board with an "
@@ -252,7 +308,10 @@ def get_issue(
         field_order: List[str] = []
         for field in resolved:
             raw = f.get(field.api_id)
-            if field.virtual == CURRENT_SPRINT:
+            if field.virtual == BLOCKED:
+                found = compute_blocked_reasons_one(client, res, fields_mgr)
+                details[field.detail_key] = _blocked_detail(found)
+            elif field.virtual == CURRENT_SPRINT:
                 details[field.detail_key] = current_sprint_name(raw, active_sprints)
             elif field.api_id in _API_TO_DETAIL:
                 details[field.detail_key] = _flatten_system_value(field.api_id, raw)
@@ -262,6 +321,8 @@ def get_issue(
             # including when empty (so show_fields like Story Points always appear).
             if field.detail_key not in ("key", "summary", "description", "comments"):
                 field_order.append(field.detail_key)
+        if details.get("blocked", "no") != "no" and details.get("status"):
+            details["status"] = f"{details['status']} (blocked)"
         details[FIELD_ORDER_KEY] = field_order
 
     result: Dict[str, Any] = dict(details)
