@@ -42,11 +42,6 @@ defaults:
   #   - description
   #   - Story Points
   #   - Git Pull Request
-  # Optional: per-issue-type field lists for `show` (type name, case-insensitive).
-  # A matching type replaces show_fields for that issue; --only still wins.
-  # show_fields_by_type:
-  #   epic: [summary, status, "target release"]
-  #   story: [summary, status, "story points"]
   # Optional: sort terms for issue lists ("-" prefix = descending).
   # sort_issues: ["-updated"]
   # Optional: client-side sort for sprint/board lists.

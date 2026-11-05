@@ -37,7 +37,6 @@ phase_tests = [
     "test_formatter_flatten.py",
     "test_issue_show_list.py",
     "test_list_fields.py",
-    "test_show_by_type.py",
     "test_sort.py",
     "test_cli_ux.py",
     "test_oauth.py",
@@ -47,6 +46,7 @@ phase_tests = [
     "test_workflow_vars.py",
     "test_issue_convert.py",
     "test_update.py",
+    "test_tree.py",
 ]
 
 failed = False
