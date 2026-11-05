@@ -39,13 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - added helper scripts for updating version and creating a testing environment
   (issue #28)
 
-### Changed
-
-- Issue queries no longer hardcode `ORDER BY updated DESC` into presets; the
-  built-in default remains `updated DESC` and is now applied to any JQL
-  (preset, raw JQL, or alias) that has no `ORDER BY` of its own. JQL carrying
-  its own `ORDER BY` is sent unchanged unless `--sort` is given.
-
 ## [0.3.0] - 2026-11-02
 
 ### Added

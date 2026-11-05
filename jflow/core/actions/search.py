@@ -29,17 +29,17 @@ from jflow.core.fields import FieldCacheManager
 _DEFAULT_LIST_TARGET_FIELDS = ["summary", "status", "issuetype", "assignee", "updated"]
 
 MY_ISSUE_FILTERS = {
-    "all": "assignee = currentUser()",
-    "open": "assignee = currentUser() AND statusCategory != Done",
-    "closed": "assignee = currentUser() AND statusCategory = Done",
-    "in-progress": 'assignee = currentUser() AND statusCategory = "In Progress"',
+    "all": "assignee = currentUser() ORDER BY updated DESC",
+    "open": "assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC",
+    "closed": "assignee = currentUser() AND statusCategory = Done ORDER BY updated DESC",
+    "in-progress": 'assignee = currentUser() AND statusCategory = "In Progress" ORDER BY updated DESC',
     "review": (
         "assignee = currentUser() AND statusCategory != Done "
-        'AND (status = "Review" OR status = "In Review")'
+        'AND (status = "Review" OR status = "In Review") ORDER BY updated DESC'
     ),
     "code-review": (
         "assignee = currentUser() AND "
-        '(status = "Code Review" OR status = "Code review")'
+        '(status = "Code Review" OR status = "Code review") ORDER BY updated DESC'
     ),
 }
 
@@ -54,7 +54,7 @@ def build_my_issues_jql(
         return jql
     if status:
         safe = status.replace("\\", "\\\\").replace('"', '\\"')
-        return f'assignee = currentUser() AND status = "{safe}"'
+        return f'assignee = currentUser() AND status = "{safe}" ORDER BY updated DESC'
     key = (filter_name or "open").strip().lower()
     if key not in MY_ISSUE_FILTERS:
         raise ValueError(
@@ -99,113 +99,6 @@ def _list_fields_need_cache(names: List[str]) -> bool:
             continue
         return True
     return False
-
-_SORT_JQL_FIELDS = {
-    "key", "issuetype", "summary", "status", "priority", "assignee",
-    "reporter", "created", "updated", "resolution", "duedate", "due",
-}
-_SORT_FIELD_ALIASES = {"type": "issuetype", "due": "duedate"}
-
-
-def parse_sort_terms(options: Optional[List[str]]) -> Optional[List[str]]:
-    """Flatten repeatable/comma-split --sort options to clean terms; None if absent/empty."""
-    if options is None:
-        return None
-    terms: List[str] = []
-    for option in options:
-        for term in (option or "").split(","):
-            term = term.strip()
-            if term:
-                terms.append(term)
-    return terms or None
-
-
-def parse_list_field_terms(options: Optional[List[str]]) -> Optional[List[str]]:
-    """Flatten repeatable/comma-split field options; None if absent/empty."""
-    if options is None:
-        return None
-    names: List[str] = []
-    for option in options:
-        for name in (option or "").split(","):
-            name = name.strip()
-            if name:
-                names.append(name)
-    return names or None
-
-
-def _find_order_by(jql: str) -> int:
-    """Index of the unquoted 'ORDER BY' keyword in jql, or -1 when absent."""
-    in_string = False
-    i = 0
-    while i < len(jql):
-        ch = jql[i]
-        if ch == '"':
-            in_string = not in_string
-            i += 1
-            continue
-        if not in_string and jql[i:i + 8].upper() == "ORDER BY":
-            before = jql[i - 1] if i > 0 else " "
-            after = jql[i + 8] if i + 8 < len(jql) else " "
-            if not (before.isalnum() or before == "_") and not (after.isalnum() or after == "_"):
-                return i
-            i += 8
-            continue
-        i += 1
-    return -1
-
-
-def jql_has_order_by(jql: str) -> bool:
-    """True when jql contains an ORDER BY keyword outside double-quoted strings."""
-    return _find_order_by(jql) != -1
-
-
-def _sort_needs_cache(sort: List[str]) -> bool:
-    for term in sort:
-        name = (term or "").lstrip("-").strip().lower()
-        if not name:
-            continue
-        name = _SORT_FIELD_ALIASES.get(name, name)
-        if name in _SORT_JQL_FIELDS:
-            continue
-        return True
-    return False
-
-
-def apply_sort(
-    jql: str, sort: List[str], fields_mgr: Optional[FieldCacheManager] = None
-) -> str:
-    """Append (or replace) an ORDER BY clause built from sort terms.
-
-    Each term is a JQL field name, optionally prefixed with ``-`` for descending.
-    ``type``/``due`` are aliases for ``issuetype``/``duedate``; other names are
-    resolved via the field cache when not in the built-in set.
-    """
-    parts: List[str] = []
-    for term in sort:
-        term = (term or "").strip()
-        if not term:
-            continue
-        desc = term.startswith("-")
-        name = term.lstrip("-").strip()
-        lowered = name.lower()
-        lowered = _SORT_FIELD_ALIASES.get(lowered, lowered)
-        if lowered in _SORT_JQL_FIELDS:
-            resolved = lowered
-        elif fields_mgr is not None:
-            field_id = fields_mgr.resolve_field_id(name)
-            if not field_id:
-                raise ValueError(f"Unknown sort field: {name}")
-            resolved = field_id
-        else:
-            raise ValueError(f"Unknown sort field: {name}")
-        parts.append(f"{resolved} DESC" if desc else f"{resolved} ASC")
-    if not parts:
-        return jql
-    clause = "ORDER BY " + ", ".join(parts)
-    idx = _find_order_by(jql)
-    if idx != -1:
-        return jql[:idx].rstrip() + " " + clause
-    return jql.rstrip() + " " + clause
 
 
 def _list_field_label(
@@ -341,7 +234,6 @@ def search_issues(
     list_fields: Optional[List[str]] = None,
     fields_mgr: Optional[FieldCacheManager] = None,
     on_warning: Optional[Callable[[str], None]] = None,
-    sort: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """Queries issues using JQL, resolving aliases and optional {placeholder} vars.
 
@@ -363,16 +255,6 @@ def search_issues(
                 + ", ".join(f"{{{name}}}" for name in sorted(set(unknown)))
                 + ". Define them under defaults.vars in user.yaml or pass --var/-V name=value."
             )
-
-    effective_sort = sort if sort is not None else (
-        config.user.defaults.sort_issues if config is not None else None
-    )
-    if (sort is not None or effective_sort) and _sort_needs_cache(sort or effective_sort) and fields_mgr is None:
-        fields_mgr = FieldCacheManager(client)
-    if sort is not None:
-        resolved_jql = apply_sort(resolved_jql, sort, fields_mgr)
-    elif not jql_has_order_by(resolved_jql):
-        resolved_jql = apply_sort(resolved_jql, effective_sort or ["-updated"], fields_mgr)
 
     effective_fields = list_fields
     if effective_fields is None and config is not None:
@@ -478,7 +360,6 @@ def list_my_issues(
     list_fields: Optional[List[str]] = None,
     fields_mgr: Optional[FieldCacheManager] = None,
     on_warning: Optional[Callable[[str], None]] = None,
-    sort: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """List issues assigned to the current user using presets, status, or raw JQL."""
     resolved = build_my_issues_jql(filter_name=filter_name, status=status, jql=jql)
@@ -491,5 +372,4 @@ def list_my_issues(
         list_fields=list_fields,
         fields_mgr=fields_mgr,
         on_warning=on_warning,
-        sort=sort,
     )

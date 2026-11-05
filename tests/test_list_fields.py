@@ -97,7 +97,7 @@ assert rows[0]["Story Points"] == 5
 assert rows[0]["Updated"] == "2026-10-01T12:00:00.000+0000"
 payload = client.post.call_args.args[1]
 assert payload["fields"] == ["status", "customfield_10016", "updated"]
-assert payload["jql"] == "project = PROJ ORDER BY updated DESC"
+assert payload["jql"] == "project = PROJ"
 
 # --- Key is only shown when requested ---
 client = _client()
@@ -192,7 +192,7 @@ rows = list_my_issues(
     client, jql="project = PROJ", list_fields=["Summary"], fields_mgr=_fields_mgr()
 )
 assert list(rows[0].keys()) == ["Summary"]
-assert client.post.call_args.args[1]["jql"] == "project = PROJ ORDER BY updated DESC"
+assert client.post.call_args.args[1]["jql"] == "project = PROJ"
 
 # --- custom columns render in human formats ---
 client = _client()
