@@ -159,7 +159,8 @@ params = kwargs.get("params") or {}
 assert "customfield_10016" in params.get("fields", "")
 assert "summary" in params.get("fields", "")
 
-# Empty explicitly-requested custom fields still render in text/markdown
+# Empty explicitly-requested custom fields are masked by default;
+# --show-empty (show_empty=True) restores forced rendering.
 empty_client = MagicMock(spec=JiraClient)
 empty_client.get.return_value = {
     "key": "PROJ-4",
@@ -178,8 +179,21 @@ empty_shown = get_issue(
 )
 assert empty_shown["Story Points"] is None
 empty_text = format_output(empty_shown, format_type="text")
-assert "Story Points:" in empty_text
+assert "Story Points:" not in empty_text
 assert "Status: Open" in empty_text
+empty_client.get.reset_mock()
+empty_shown_forced = get_issue(
+    empty_client,
+    "PROJ-4",
+    comments="none",
+    show_fields=["summary", "status", "Story Points"],
+    show_empty=True,
+    fields_mgr=fields_mgr,
+)
+assert empty_shown_forced["Story Points"] is None
+forced_text = format_output(empty_shown_forced, format_type="text")
+assert "Story Points:" in forced_text
+assert "Status: Open" in forced_text
 # Internal order key must not leak into json
 empty_json = format_output(empty_shown, format_type="json")
 assert "_jflow_field_order" not in empty_json
