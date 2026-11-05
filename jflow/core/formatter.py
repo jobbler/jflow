@@ -195,9 +195,15 @@ def _labelize(key: str) -> str:
 
 def _public_payload(data: Any) -> Any:
     """Strip internal formatter keys from machine-readable payloads."""
-    if not isinstance(data, dict):
-        return data
-    return {k: v for k, v in data.items() if k not in _INTERNAL_KEYS}
+    if isinstance(data, dict):
+        return {
+            k: _public_payload(v)
+            for k, v in data.items()
+            if not k.startswith("_") and k not in _INTERNAL_KEYS
+        }
+    if isinstance(data, list):
+        return [_public_payload(item) for item in data]
+    return data
 
 
 def _indent_block(text: str, prefix: str = "  ") -> str:
@@ -439,9 +445,45 @@ def _format_list_markdown(rows: List[Dict[str, Any]]) -> str:
             lines.append(f"- {'; '.join(bits)}")
     return "\n".join(lines)
 
+def _tree_label(node: Dict[str, Any]) -> str:
+    """Single-line label for a tree node, extras appended."""
+    extras = [
+        (k, v)
+        for k, v in node.items()
+        if k not in ("key", "type", "summary", "status", "children")
+        and not k.startswith("_")
+        and not _is_empty(v)
+    ]
+    suffix = "".join(f" | {k}: {_format_scalar(v)}" for k, v in extras)
+    return f"{node.get('key', '')} {node.get('summary', '')} [{node.get('status', '')}]{suffix}".rstrip()
+
+
+def _format_tree_lines(node: Dict[str, Any], prefix: str = "") -> List[str]:
+    """Connector-style tree lines for a node's children (and their subtrees)."""
+    lines: List[str] = []
+    children = node.get("children") or []
+    for index, child in enumerate(children):
+        last = index == len(children) - 1
+        branch = "└── " if last else "├── "
+        continuation = prefix + ("    " if last else "│   ")
+        lines.append(prefix + branch + _tree_label(child))
+        lines.extend(_format_tree_lines(child, continuation))
+    return lines
+
+
+def _format_tree_text(data: Dict[str, Any]) -> str:
+    lines = [_tree_label(data), *_format_tree_lines(data)]
+    return "\n".join(lines) + "\n"
+
+
+def _format_tree_markdown(data: Dict[str, Any]) -> str:
+    return "```\n" + _format_tree_text(data) + "```\n"
+
 
 def _format_human(data: Any) -> str:
     """Unix-like human output: structured issues, sectioned dicts, or aligned columns."""
+    if isinstance(data, dict) and data.get("_tree"):
+        return _format_tree_text(data)
     if isinstance(data, dict):
         if _is_issue_detail(data):
             return _format_issue_text(data)
@@ -460,6 +502,8 @@ def _format_human(data: Any) -> str:
 
 def _format_markdown(data: Any) -> str:
     """Markdown human output for issues, lists, and generic payloads."""
+    if isinstance(data, dict) and data.get("_tree"):
+        return _format_tree_markdown(data)
     if isinstance(data, dict):
         if _is_issue_detail(data):
             return _format_issue_markdown(data)

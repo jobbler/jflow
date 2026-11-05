@@ -43,11 +43,6 @@ defaults:
   #   - assignee
   #   - description
   #   - Story Points
-  # Optional: per-issue-type field lists for `show` (type name, case-insensitive).
-  # A matching type replaces show_fields for that issue; --only still wins.
-  # show_fields_by_type:
-  #   epic: [summary, status, "target release"]
-  #   story: [summary, status, "story points"]
   # Optional: columns for `jflow list` / `jflow query`.
   # Unset/empty keeps the built-in columns. CLI --fields overrides this list.
   # list_fields:
