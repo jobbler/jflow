@@ -66,7 +66,7 @@ def test_search_issues_template_vars():
         config=config,
         template_vars={"project": "FOO"},
     )
-    assert _searched_jql(client) == "project = FOO AND status != Closed"
+    assert _searched_jql(client) == "project = FOO AND status != Closed ORDER BY updated DESC"
 
 
 def test_search_issues_vars_from_config():
@@ -78,7 +78,7 @@ def test_search_issues_vars_from_config():
     )
     search_issues(client, jql="mine", config=config)
     assert _searched_jql(client) == (
-        "assignee = me AND project = PROJ AND component = My Team Component"
+        "assignee = me AND project = PROJ AND component = My Team Component ORDER BY updated DESC"
     )
 
 
@@ -87,7 +87,7 @@ def test_search_issues_vars_pointer():
     client.post.return_value = {"issues": []}
     config = _config_with_alias(project="PROJ", vars={"user": "jira.email"})
     search_issues(client, jql="assignee = {user} AND project = {project}", config=config)
-    assert _searched_jql(client) == "assignee = a@b.com AND project = PROJ"
+    assert _searched_jql(client) == "assignee = a@b.com AND project = PROJ ORDER BY updated DESC"
 
 
 def test_search_issues_vars_literal_not_path():
@@ -95,7 +95,7 @@ def test_search_issues_vars_literal_not_path():
     client.post.return_value = {"issues": []}
     config = _config_with_alias(project="PROJ", vars={"team": "my.team"})
     search_issues(client, jql="component = {team}", config=config)
-    assert _searched_jql(client) == "component = my.team"
+    assert _searched_jql(client) == "component = my.team ORDER BY updated DESC"
 
 
 def test_search_issues_cli_var_overrides_vars():
@@ -112,7 +112,7 @@ def test_search_issues_cli_var_overrides_vars():
         template_vars={"user": "not-me"},
     )
     assert _searched_jql(client) == (
-        "assignee = not-me AND project = FROM-MAP AND component = My Team Component"
+        "assignee = not-me AND project = FROM-MAP AND component = My Team Component ORDER BY updated DESC"
     )
 
 
@@ -154,7 +154,7 @@ def test_list_jql_uses_config_vars():
     client.post.return_value = {"issues": []}
     config = _config_with_alias(project="PROJ", vars={"user": "me"})
     list_my_issues(client, jql="assignee = {user} AND project = {project}", config=config)
-    assert _searched_jql(client) == "assignee = me AND project = PROJ"
+    assert _searched_jql(client) == "assignee = me AND project = PROJ ORDER BY updated DESC"
 
 def test_deeper_cli_shape():
     runner = CliRunner()

@@ -64,6 +64,13 @@ class Defaults(BaseModel):
     show_fields: Optional[List[str]] = None
     # Field names/ids for `jflow list` / `jflow query`. None/empty = built-in columns.
     list_fields: Optional[List[str]] = None
+    # Sort terms for `jflow list` / `jflow query` (JQL fields, "-" prefix = descending).
+    # None/empty = built-in "updated DESC" (only when the JQL has no ORDER BY of its own).
+    sort_issues: Optional[List[str]] = None
+    # Sort terms for `jflow sprint list` (client-side; "-" prefix = descending).
+    sort_sprints: Optional[List[str]] = None
+    # Sort terms for `jflow boards list` (client-side; "-" prefix = descending).
+    sort_boards: Optional[List[str]] = None
 
 
 class ProjectConfig(BaseModel):
