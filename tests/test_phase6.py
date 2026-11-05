@@ -32,7 +32,7 @@ assert results[0]["Assignee"] == "Alex Dev"
 mock_client.post.assert_called_with(
     "/rest/api/3/search/jql",
     {
-        "jql": "project = PROJ AND status = 'In Progress' ORDER BY updated DESC",
+        "jql": "project = PROJ AND status = 'In Progress'",
         "maxResults": 15,
         "fields": ["summary", "status", "issuetype", "assignee", "updated"],
     },

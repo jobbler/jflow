@@ -10,51 +10,10 @@ from jflow.core.client import JiraClient
 from jflow.core.keys import normalize_issue_key
 
 
-def sort_records(
-    items: List[Dict[str, Any]],
-    sort: Optional[List[str]],
-    key_map: Optional[Dict[str, str]] = None,
-) -> List[Dict[str, Any]]:
-    """Sort dict records client-side by sort terms ("-" prefix = descending).
-
-    Returns a new list; ``sort`` None/empty returns ``items`` unchanged (API order).
-    Unknown fields raise ValueError. None values sort last in ascending order.
-    """
-    if not sort:
-        return items
-    key_map = key_map or {}
-    known = set()
-    for item in items:
-        known.update(item.keys())
-    parsed = []
-    for term in sort:
-        term = (term or "").strip()
-        if not term:
-            continue
-        desc = term.startswith("-")
-        name = term.lstrip("-").strip()
-        if not name:
-            raise ValueError(f"Unknown sort field: {term}")
-        key = key_map.get(name, name)
-        if items and key not in known:
-            raise ValueError(f"Unknown sort field: {name}")
-        parsed.append((key, desc))
-    result = list(items)
-    for key, desc in reversed(parsed):
-        def sort_key(item, _key=key):
-            value = item.get(_key)
-            if isinstance(value, str):
-                value = value.lower()
-            return (value is None, value)
-        result.sort(key=sort_key, reverse=desc)
-    return result
-
-
 def list_boards(
     client: JiraClient,
     name: Optional[str] = None,
     max_results: Optional[int] = None,
-    sort: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """List Agile boards (id, name, type).
 
@@ -83,16 +42,15 @@ def list_boards(
                 "type": item.get("type"),
                 "projectKey": location.get("projectKey") or location.get("projectName"),
             })
-        if max_results is not None and len(collected) >= max_results:
-            break
+            if max_results is not None and len(collected) >= max_results:
+                return collected[:max_results]
 
         is_last = res.get("isLast", True)
         if is_last or not values:
             break
         start_at += len(values)
 
-    collected = sort_records(collected, sort, {"project_key": "projectKey"})
-    return collected[:max_results] if max_results is not None else collected
+    return collected
 
 
 def resolve_board(client: JiraClient, board: Union[str, int]) -> int:
@@ -120,14 +78,14 @@ def resolve_board(client: JiraClient, board: Union[str, int]) -> int:
     return int(board_id)
 
 
-def get_board_sprints(client: JiraClient, board_id: int, state: Optional[str] = None, sort: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+def get_board_sprints(client: JiraClient, board_id: int, state: Optional[str] = None) -> List[Dict[str, Any]]:
     """Lists sprints for a given board, optionally filtered by state ('active', 'future', 'closed')."""
     path = f"/rest/agile/1.0/board/{board_id}/sprint"
     params = {}
     if state:
         params["state"] = state
     res = client.get(path, params=params)
-    return sort_records(res.get("values", []), sort, {"start_date": "startDate", "end_date": "endDate"})
+    return res.get("values", [])
 
 
 def get_active_sprint(client: JiraClient, board_id: int) -> Optional[Dict[str, Any]]:

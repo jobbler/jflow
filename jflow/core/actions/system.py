@@ -5,9 +5,6 @@
 # Updated in whole or in part by AI using Cursor (Composer).
 # ==============================================================================
 from pathlib import Path
-import shutil
-import subprocess
-import sys
 from typing import Any, Dict, Optional
 from jflow.core.client import JiraClient
 
@@ -51,11 +48,6 @@ defaults:
   #   - status
   #   - updated
   #   - Story Points
-  # Optional: sort terms for issue lists (--sort style, "-" prefix = descending).
-  # sort_issues: ["-updated"]
-  # Optional: client-side sort for sprint/board lists.
-  # sort_sprints: ["start_date"]
-  # sort_boards: ["name"]
 projects:
   PROJ:
     default_issue_type: "Task"
@@ -130,18 +122,3 @@ def init_config(target_dir: Optional[Path] = None, force: bool = False) -> Dict[
         "skipped": skipped,
         "status": "Configuration Initialized",
     }
-
-
-def run_update() -> int:
-    """Upgrade jflow in place when running from a pipx venv; otherwise print instructions."""
-    if "pipx/venvs/" not in sys.prefix:
-        if shutil.which("pipx"):
-            print("pipx upgrade jflow")
-        else:
-            print("python -m pip install --upgrade jflow")
-        return 0
-    if shutil.which("pipx"):
-        res = subprocess.run(["pipx", "upgrade", "jflow"], check=False)
-    else:
-        res = subprocess.run([sys.executable, "-m", "pipx", "upgrade", "jflow"], check=False)
-    return res.returncode
