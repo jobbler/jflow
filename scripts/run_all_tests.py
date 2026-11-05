@@ -7,7 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-tests_dir = Path(__file__).parent / "tests"
+tests_dir = Path(__file__).resolve().parent.parent / "tests"
 
 phase_tests = [
     "test_phase1.py",

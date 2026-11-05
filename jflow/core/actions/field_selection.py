@@ -13,9 +13,12 @@ from jflow.core.client import JiraClient
 # Virtual fields are computed by jflow rather than read directly from Jira.
 CURRENT_SPRINT = "current_sprint"
 CURRENT_SPRINT_LABEL = "Current Sprint"
+BLOCKED = "blocked"
+BLOCKED_LABEL = "Blocked"
 VIRTUAL_FIELD_ALIASES: Dict[str, str] = {
     "current_sprint": CURRENT_SPRINT,
     "current sprint": CURRENT_SPRINT,
+    "blocked": BLOCKED,
 }
 SPRINT_FIELD_NAME = "Sprint"
 _BACKLOG = "Backlog"

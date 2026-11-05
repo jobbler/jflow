@@ -43,6 +43,7 @@ from jflow.core.actions.sprint import (
 )
 from jflow.core.actions.labels import add_labels, remove_labels, set_labels
 from jflow.core.actions.chain import execute_chain
+from jflow.core.actions.tree import build_tree
 from jflow.core.actions.fields import (
     convert_issue_type,
     update_field,
@@ -638,7 +639,11 @@ def issue_show(
     client = JiraClient.from_settings(config.user)
     show_fields = config.user.defaults.show_fields
     effective = only if only else show_fields
-    fields_mgr = FieldCacheManager(client) if needs_field_cache(effective) else None
+    fields_mgr = (
+        FieldCacheManager(client)
+        if (needs_field_cache(effective) or effective is None)
+        else None
+    )
     res = get_issue(
         client,
         issue_key=issue_key,
@@ -648,6 +653,26 @@ def issue_show(
         fields_mgr=fields_mgr,
         board=config.user.defaults.board,
     )
+    _emit(ctx, config, res)
+
+
+@issue_app.command("tree")
+@app.command("tree")
+def issue_tree(
+    ctx: typer.Context,
+    issue_key: str = typer.Argument(
+        ...,
+        help="Issue key (e.g. PROJ-123)",
+        callback=_issue_key_callback,
+    ),
+    fields: Optional[List[str]] = typer.Option(
+        None, "--fields", "-F", help="Extra fields per node (repeatable)"
+    ),
+):
+    """Show an issue's hierarchy rooted at its topmost ancestor."""
+    config = _load_cfg(ctx)
+    client = JiraClient.from_settings(config.user)
+    res = build_tree(client, issue_key, fields=fields)
     _emit(ctx, config, res)
 
 

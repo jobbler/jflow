@@ -11,14 +11,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-05
+
 ### Added
 
-- `defaults.vars` fills `{placeholders}` in `jflow query`, `jflow issue search`,
-  and `jflow list --jql` (and `issue list --jql`). `{project}` also uses
-  `defaults.project`. `--var` / `-V` wins for that command. Vars now also fill
-  issue templates and workflow chains. A value may be a literal or a dotted
-  config path like `jira.email`. Unknown `{placeholders}` in JQL raise a clear
-  error.
+- `defaults.vars` fills `{placeholders}` in `jflow query`, `jflow issue
+  search`, and `jflow list --jql` (and `issue list --jql`). `{project}` also
+  uses `defaults.project`. `--var` / `-V` wins for that command. Vars now also
+  fill issue templates and workflow chains. A value may be a literal or a
+  dotted config path like `jira.email`. Unknown `{placeholders}` in JQL raise
+  a clear error.
+- Configurable sorting: `defaults.sort_issues`, `defaults.sort_sprints`, and
+  `defaults.sort_boards` in `user.yaml`, plus a repeatable, comma-splittable
+  `--sort` option (leading `-` = descending) on `jflow list`, `jflow query` /
+  `issue search`, `jflow sprint list`, and `jflow boards list`. Issue lists
+  sort server-side via JQL `ORDER BY` (custom field names resolved via the
+  field cache); sprint/board lists sort client-side after fetch (board lists
+  with `--limit` sort the full collected set before truncating).
+- added "update" command (issue #5). can now update using "jflow update" if
+  installed using pipx.
+- added sorting capability to issue list (issue #7).
+- can now configure the fields to be displayed for listing issues and showing
+  issues (issue #12)
+- added a tree view to see relationships (issue #10)
+- added viewing what i blocking an issue (issue #9). show in tree view, list
+  view, and issue show.
+- added helper scripts for updating version and creating a testing environment
+  (issue #28)
 
 ## [0.3.0] - 2026-11-02
 

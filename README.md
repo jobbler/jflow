@@ -295,7 +295,7 @@ Unit suite (mocked / local):
 
 ```bash
 python3 -m pip install -e .
-python3 run_all_tests.py
+python3 scripts/run_all_tests.py
 ```
 
 Staging integration tests (requires staging `user.yaml`; default is read-only):
