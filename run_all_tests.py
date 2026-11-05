@@ -46,6 +46,7 @@ phase_tests = [
     "test_workflow_vars.py",
     "test_issue_convert.py",
     "test_update.py",
+    "test_tree.py",
 ]
 
 failed = False
