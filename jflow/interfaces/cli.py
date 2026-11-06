@@ -29,8 +29,8 @@ from jflow.core.actions import (
     init_config,
 )
 from jflow.core.actions.issue_view import needs_field_cache
-from jflow.core.actions.search import MY_ISSUE_FILTERS
-from jflow.core.actions.system import build_status
+from jflow.core.actions.search import MY_ISSUE_FILTERS, parse_sort_terms
+from jflow.core.actions.system import build_status, run_update
 from jflow.core.actions.sprint import (
     add_issue_to_sprint,
     create_sprint,
@@ -596,6 +596,11 @@ def issue_list(
         "-F",
         help="Columns to display (repeatable); overrides defaults.list_fields",
     ),
+    sort: Optional[List[str]] = typer.Option(
+        None,
+        "--sort",
+        help="Sort fields, comma-separated, repeatable; '-' prefix = descending (e.g. --sort key,-updated)",
+    ),
 ):
     """List issues assigned to you (filter presets, status, or JQL)."""
     config = _load_cfg(ctx)
@@ -610,6 +615,7 @@ def issue_list(
         template_vars=_parse_vars(var),
         list_fields=fields if fields else config.user.defaults.list_fields,
         on_warning=_warn_stderr,
+        sort=parse_sort_terms(sort),
     )
     _emit(ctx, config, results)
 
@@ -633,12 +639,20 @@ def issue_show(
     only: Optional[List[str]] = typer.Option(
         None, "--only", "-o", help="Show only these detail fields (repeatable)"
     ),
+    show_empty: bool = typer.Option(
+        False, "--show-empty", help="Render requested fields even when empty"
+    ),
 ):
     """Show issue details, optionally with comments."""
     config = _load_cfg(ctx)
     client = JiraClient.from_settings(config.user)
     show_fields = config.user.defaults.show_fields
-    effective = only if only else show_fields
+    show_fields_by_type = config.user.defaults.show_fields_by_type
+    per_type = None
+    if not only and show_fields_by_type:
+        # Any non-empty per-type list may apply; assume cache needed if so.
+        per_type = next((v for v in show_fields_by_type.values() if v), None)
+    effective = only if only else (per_type if per_type else show_fields)
     fields_mgr = (
         FieldCacheManager(client)
         if (needs_field_cache(effective) or effective is None)
@@ -650,6 +664,8 @@ def issue_show(
         comments=comments,
         only=only,
         show_fields=show_fields,
+        show_fields_by_type=show_fields_by_type,
+        show_empty=show_empty,
         fields_mgr=fields_mgr,
         board=config.user.defaults.board,
     )
@@ -691,6 +707,11 @@ def issue_search(
         "-F",
         help="Columns to display (repeatable); overrides defaults.list_fields",
     ),
+    sort: Optional[List[str]] = typer.Option(
+        None,
+        "--sort",
+        help="Sort fields, comma-separated, repeatable; '-' prefix = descending (e.g. --sort key,-updated)",
+    ),
 ):
     """Search issues with raw JQL or a configured alias."""
     config = _load_cfg(ctx)
@@ -703,6 +724,7 @@ def issue_search(
         template_vars=_parse_vars(var),
         list_fields=fields if fields else config.user.defaults.list_fields,
         on_warning=_warn_stderr,
+        sort=parse_sort_terms(sort),
     )
     _emit(ctx, config, results)
 
@@ -721,6 +743,12 @@ def cli_version():
     """Print jflow package version."""
     typer.echo(__version__)
 
+
+
+@app.command("update")
+def cli_update():
+    """Upgrade jflow (pipx when available)."""
+    raise typer.Exit(code=run_update())
 
 @app.command("status")
 def cli_status(ctx: typer.Context):
@@ -795,11 +823,16 @@ def auth_status(ctx: typer.Context):
 def cli_boards_list(
     ctx: typer.Context,
     limit: Optional[int] = typer.Option(None, "--limit", "-l", help="Max boards to return (default: all)"),
+    sort: Optional[List[str]] = typer.Option(
+        None,
+        "--sort",
+        help="Sort fields, comma-separated, repeatable; '-' prefix = descending (e.g. --sort name)",
+    ),
 ):
     """List all Agile boards with numeric id and name (paginated)."""
     config = _load_cfg(ctx)
     client = JiraClient.from_settings(config.user)
-    results = list_boards(client, max_results=limit)
+    results = list_boards(client, max_results=limit, sort=parse_sort_terms(sort) or config.user.defaults.sort_boards)
     _emit(ctx, config, results)
 
 
@@ -828,12 +861,17 @@ def cli_sprint_list(
         help="Sprint state (active, future, closed)",
         autocompletion=_complete_sprint_state,
     ),
+    sort: Optional[List[str]] = typer.Option(
+        None,
+        "--sort",
+        help="Sort fields, comma-separated, repeatable; '-' prefix = descending (e.g. --sort start_date)",
+    ),
 ):
     """List sprints for a board."""
     config = _load_cfg(ctx)
     client = JiraClient.from_settings(config.user)
     board_id = _resolve_board_id(client, board, config)
-    results = get_board_sprints(client, board_id=board_id, state=state)
+    results = get_board_sprints(client, board_id=board_id, state=state, sort=parse_sort_terms(sort) or config.user.defaults.sort_sprints)
     _emit(ctx, config, results)
 
 

@@ -42,7 +42,7 @@ assert results[0]["Key"] == "PROJ-301"
 mock_client.post.assert_called_with(
     "/rest/api/3/search/jql",
     {
-        "jql": "assignee = currentUser() AND issuetype = Bug AND status != Closed",
+        "jql": "assignee = currentUser() AND issuetype = Bug AND status != Closed ORDER BY updated DESC",
         "maxResults": 10,
         "fields": ["summary", "status", "issuetype", "assignee", "updated"],
     },
@@ -54,7 +54,7 @@ search_issues(mock_client, jql="project = DEMO", max_results=5, config=config)
 mock_client.post.assert_called_with(
     "/rest/api/3/search/jql",
     {
-        "jql": "project = DEMO",
+        "jql": "project = DEMO ORDER BY updated DESC",
         "maxResults": 5,
         "fields": ["summary", "status", "issuetype", "assignee", "updated"],
     },

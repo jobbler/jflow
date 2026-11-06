@@ -62,8 +62,19 @@ class Defaults(BaseModel):
     vars: Dict[str, str] = Field(default_factory=dict)
     # Field names/ids for `jflow show` / `jflow issue show`. None/empty = built-in set.
     show_fields: Optional[List[str]] = None
+    # Per-issue-type field lists for `show`; type name matching is
+    # case-insensitive. Replaces (not merges) `show_fields` when the
+    # issue's type matches.
+    show_fields_by_type: Dict[str, List[str]] = Field(default_factory=dict)
     # Field names/ids for `jflow list` / `jflow query`. None/empty = built-in columns.
     list_fields: Optional[List[str]] = None
+    # Sort terms for `jflow list` / `jflow query` (JQL fields, "-" prefix = descending).
+    # None/empty = built-in "updated DESC" (only when the JQL has no ORDER BY of its own).
+    sort_issues: Optional[List[str]] = None
+    # Sort terms for `jflow sprint list` (client-side; "-" prefix = descending).
+    sort_sprints: Optional[List[str]] = None
+    # Sort terms for `jflow boards list` (client-side; "-" prefix = descending).
+    sort_boards: Optional[List[str]] = None
 
 
 class ProjectConfig(BaseModel):

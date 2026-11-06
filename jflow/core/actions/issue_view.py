@@ -30,7 +30,7 @@ from jflow.core.actions.search import parse_list_field_terms
 from jflow.core.actions.fields import decode_field_value
 from jflow.core.client import JiraClient
 from jflow.core.fields import FieldCacheManager
-from jflow.core.formatter import FIELD_ORDER_KEY
+from jflow.core.formatter import FIELD_ORDER_KEY, _is_empty as _field_is_empty
 
 ISSUE_SHOW_FIELDS = [
     "summary",
@@ -238,6 +238,8 @@ def get_issue(
     comments: str = "none",
     only: Optional[List[str]] = None,
     show_fields: Optional[List[str]] = None,
+    show_fields_by_type: Optional[Dict[str, List[str]]] = None,
+    show_empty: bool = False,
     fields_mgr: Optional[FieldCacheManager] = None,
     board: Optional[str] = None,
 ) -> Dict[str, Any]:
@@ -245,16 +247,32 @@ def get_issue(
 
     Field selection precedence:
     1. ``only`` (CLI ``--only``) — overrides config
-    2. ``show_fields`` (``defaults.show_fields`` in user.yaml)
-    3. Built-in ``ISSUE_SHOW_FIELDS``
+    2. ``show_fields_by_type[type]`` (``defaults.show_fields_by_type``; type
+       name matched case-insensitively; empty list = no match)
+    3. ``show_fields`` (``defaults.show_fields`` in user.yaml)
+    4. Built-in ``ISSUE_SHOW_FIELDS``
 
     ``key`` is always included. Comments are controlled separately via ``comments``.
     The ``current_sprint`` virtual field uses the active sprint on ``board``.
+    Empty requested fields are skipped unless ``show_empty`` is true.
     """
     mode, count = parse_comments_arg(comments)
     path = f"/rest/api/3/issue/{issue_key}"
 
-    requested = parse_list_field_terms(only if only else show_fields)
+    per_type: Optional[List[str]] = None
+    if not only and show_fields_by_type:
+        res_type = client.get(path, params={"fields": "issuetype"}) or {}
+        type_name = ((res_type.get("fields") or {}).get("issuetype") or {}).get("name")
+        if type_name:
+            folded = (type_name or "").strip().casefold()
+            for key, names in show_fields_by_type.items():
+                if names and (key or "").strip().casefold() == folded:
+                    per_type = names
+                    break
+
+    requested = parse_list_field_terms(
+        only if only else (per_type if per_type else show_fields)
+    )
     use_builtin = not requested
 
     if use_builtin:
@@ -317,9 +335,11 @@ def get_issue(
                 details[field.detail_key] = _flatten_system_value(field.api_id, raw)
             else:
                 details[field.detail_key] = decode_field_value(field.schema, raw)
-            # Force meta lines for explicitly requested non-structural fields,
-            # including when empty (so show_fields like Story Points always appear).
-            if field.detail_key not in ("key", "summary", "description", "comments"):
+            # Force meta lines for explicitly requested non-structural fields.
+            # Empty values are skipped unless show_empty is set.
+            if field.detail_key not in ("key", "summary", "description", "comments") and (
+                show_empty or not _field_is_empty(details[field.detail_key])
+            ):
                 field_order.append(field.detail_key)
         if details.get("blocked", "no") != "no" and details.get("status"):
             details["status"] = f"{details['status']} (blocked)"
